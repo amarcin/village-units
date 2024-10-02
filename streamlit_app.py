@@ -68,10 +68,7 @@ if unit_data:
     st.data_editor(
         df,
         column_config={
-            "Unit": st.column_config.TextColumn(),
-            "Rent": st.column_config.NumberColumn(format="$%d"),
-            "Building": st.column_config.TextColumn(),
-            "Available": st.column_config.TextColumn(),
+
             "Property": st.column_config.TextColumn(),
             "Size": st.column_config.TextColumn(),
             "Floorplan": st.column_config.LinkColumn(display_text="View"),
