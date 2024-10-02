@@ -25,14 +25,14 @@ def fetch_units():
           
         for unit in units:  
             selected_unit = {  
-                "rent": unit.get("rent"),  
-                "building": unit.get("building"),  
-                "unit_number": unit.get("unit_number"),  
-                "availability": unit.get("availability"),  
-                "property_name": unit.get("property", {}).get("name"),  
-                "floorplan_name": unit.get("floorplan", {}).get("name"),  
-                "floorplan_media_url": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),  
-                "amenities": ", ".join(unit.get("amenities", []))  # Join amenities list into a comma-separated string  
+                "Rent": unit.get("rent"),  
+                "Building": unit.get("building"),  
+                "Unit #": unit.get("unit_number"),  
+                "Available": unit.get("availability"),  
+                "Property": unit.get("property", {}).get("name"),  
+                "Size": unit.get("floorplan", {}).get("name"),  
+                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),  
+                "Amenities": ", ".join(unit.get("amenities", []))  # Join amenities list into a comma-separated string  
             }  
             unit_array.append(selected_unit)  
           
@@ -52,6 +52,18 @@ if st.button("Fetch Unit Data"):
     if unit_data:  
         # Convert the list of units to a DataFrame  
         df = pd.DataFrame(unit_data)  
-          
+
+        # Reset the index
+        df = df.reset_index(drop=True)
+
+        # Reorder the columns
+        df = df[["Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]
+        
+        # Turn the amenities column into a list
+        df["Amenities"] = df["Amenities"].str.split(", ")
+
+        # Turn the floorplan to a clickable link
+        df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[{x.split('/')[-1]}]({x})" if x else "")
+
         # Display the DataFrame in a sortable table  
         st.dataframe(df)  # Streamlit's dataframe is sortable by default  
