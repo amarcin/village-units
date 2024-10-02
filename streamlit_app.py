@@ -62,9 +62,26 @@ if unit_data:
     df["Amenities"] = df["Amenities"].str.split(", ")  
   
     # Turn the floorplan to a clickable link  
-    df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
+    # df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
   
     # Display the DataFrame in a sortable table  
-    st.dataframe(df, hide_index=True)  # This will provide inline sorting and filtering  
+    st.data_editor(
+        df,
+        column_config={
+            "Unit": st.column_config.TextColumn(),
+            "Rent": st.column_config.NumberColumn(format="$%d"),
+            "Building": st.column_config.TextColumn(),
+            "Available": st.column_config.TextColumn(),
+            "Property": st.column_config.TextColumn(),
+            "Size": st.column_config.TextColumn(),
+            "Floorplan": st.column_config.LinkColumn(display_text="View"),
+            "Amenities": st.column_config.ListColumn(),
+        },
+        hide_index=True,
+    )
+    
+    st.dataframe(df)
+
+
 else:  
     st.warning("No data available.")  
