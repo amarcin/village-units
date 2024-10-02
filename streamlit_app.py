@@ -28,7 +28,7 @@ def fetch_units():
             selected_unit = {  
                 "Rent": unit.get("rent"),  
                 "Building": unit.get("building"),  
-                "Unit #": unit.get("unit_number"),  
+                "Unit": unit.get("unit_number"),  
                 "Available": unit.get("availability"),  
                 "Property": unit.get("property", {}).get("name"),  
                 "Size": unit.get("floorplan", {}).get("name"),  
@@ -56,7 +56,7 @@ if unit_data:
     df = df.reset_index(drop=True)  
   
     # Reorder the columns  
-    df = df[["Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]  
+    df = df[["Unit", "Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]
   
     # Turn the amenities column into a list  
     df["Amenities"] = df["Amenities"].str.split(", ")  
@@ -65,6 +65,6 @@ if unit_data:
     df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
   
     # Display the DataFrame in a sortable table  
-    st.dataframe(df)  # This will provide inline sorting and filtering  
+    st.dataframe(df, hide_index=True)  # This will provide inline sorting and filtering  
 else:  
     st.warning("No data available.")  
