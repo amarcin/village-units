@@ -4,7 +4,6 @@ import requests
   
 st.title("Village Unit Analysis")  
   
-# Define the base API endpoint  
 api_url = "https://api.thevillagedallas.com/units/search"  
   
 # Function to fetch data from the API with caching  
@@ -37,7 +36,6 @@ def fetch_units():
             }  
             unit_array.append(selected_unit)  
   
-        # Check if there are no more units to fetch  
         if len(units) < limit:  
             break  
   
@@ -53,41 +51,49 @@ property_filter = st.sidebar.text_input("Filter by Property Name", "")
   
 # Button to fetch data  
 if st.button("Fetch Unit Data"):  
+    # Fetch data and store it in session state  
     unit_data = fetch_units()  
-  
     if unit_data:  
-        # Convert the list of units to a DataFrame  
-        df = pd.DataFrame(unit_data)  
+        st.session_state["unit_data"] = unit_data  
   
-        # Apply filters  
-        df = df[(df["Rent"] >= min_rent) & (df["Rent"] <= max_rent)]  
-        if property_filter:  
-            df = df[df["Property"].str.contains(property_filter, case=False, na=False)]  
+# Check if data is already fetched and stored in session state  
+if "unit_data" in st.session_state:  
+    unit_data = st.session_state["unit_data"]  
+      
+    # Convert the list of units to a DataFrame  
+    df = pd.DataFrame(unit_data)  
   
-        if df.empty:  
-            st.warning("No units match the selected criteria.")  
-        else:  
-            # Reset the index  
-            df = df.reset_index(drop=True)  
+    # Apply filters  
+    df = df[(df["Rent"] >= min_rent) & (df["Rent"] <= max_rent)]  
+    if property_filter:  
+        df = df[df["Property"].str.contains(property_filter, case=False, na=False)]  
   
-            # Reorder the columns  
-            df = df[["Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]  
+    if df.empty:  
+        st.warning("No units match the selected criteria.")  
+    else:  
+        # Reset the index  
+        df = df.reset_index(drop=True)  
   
-            # Turn the amenities column into a list  
-            df["Amenities"] = df["Amenities"].str.split(", ")  
+        # Reorder the columns  
+        df = df[["Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]  
   
-            # Turn the floorplan to a clickable link  
-            df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
+        # Turn the amenities column into a list  
+        df["Amenities"] = df["Amenities"].str.split(", ")  
   
-            # Display the DataFrame in a sortable table  
-            st.dataframe(df)  
+        # Turn the floorplan to a clickable link  
+        df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
   
-            # Show amenities in an expander for each unit  
-            for index, row in df.iterrows():  
-                with st.expander(f"Unit {index + 1}: {row['Property']} - {row['Size']}"):  
-                    st.write(f"**Rent**: ${row['Rent']}")  
-                    st.write(f"**Available**: {row['Available']}")  
-                    st.write(f"**Building**: {row['Building']}")  
-                    st.write(f"**Amenities**: {', '.join(row['Amenities'])}")  
-                    if row["Floorplan"]:  
-                        st.markdown(f"[View Floorplan]({row['Floorplan']})")  
+        # Display the DataFrame in a sortable table  
+        st.dataframe(df)  
+  
+        # Show amenities in an expander for each unit  
+        for index, row in df.iterrows():  
+            with st.expander(f"Unit {index + 1}: {row['Property']} - {row['Size']}"):  
+                st.write(f"**Rent**: ${row['Rent']}")  
+                st.write(f"**Available**: {row['Available']}")  
+                st.write(f"**Building**: {row['Building']}")  
+                st.write(f"**Amenities**: {', '.join(row['Amenities'])}")  
+                if row["Floorplan"]:  
+                    st.markdown(f"[View Floorplan]({row['Floorplan']})")  
+else:  
+    st.info("Click 'Fetch Unit Data' to load data.")  
