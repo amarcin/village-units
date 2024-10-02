@@ -5,25 +5,18 @@ st.write(
     "Let's start building! For help and inspiration, head over to [docs.streamlit.io](https://docs.streamlit.io/)."
 )
 
-# %%
-# !pip3 install requests
-
-# %%
 import requests  
 import json  
 import time
 
-# %%
 # Define the base API endpoint  
 api_url = "https://api.thevillagedallas.com/units/search"
 
-# %%
 # Initialize variables  
 unit_array = []  # To store only the required fields from each unit  
 page = 1             # Start from the first page  
 limit = 10           # Adjust this if the API allows larger batch sizes
 
-# %%
 while True:  
     # Make the GET request with pagination parameters  
     response = requests.get(api_url, params={"page": page, "limit": limit})  
