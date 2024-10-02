@@ -65,16 +65,6 @@ if unit_data:
     df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
   
     # Display the DataFrame in a sortable table  
-    st.dataframe(df)  
-  
-    # Show amenities in an expander for each unit  
-    for index, row in df.iterrows():  
-        with st.expander(f"Unit {index + 1}: {row['Property']} - {row['Size']}"):  
-            st.write(f"**Rent**: ${row['Rent']}")  
-            st.write(f"**Available**: {row['Available']}")  
-            st.write(f"**Building**: {row['Building']}")  
-            st.write(f"**Amenities**: {', '.join(row['Amenities'])}")  
-            if row["Floorplan"]:  
-                st.markdown(f"[View Floorplan]({row['Floorplan']})")  
+    st.dataframe(df)  # This will provide inline sorting and filtering  
 else:  
     st.warning("No data available.")  
