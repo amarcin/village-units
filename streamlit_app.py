@@ -60,25 +60,8 @@ if unit_data:
   
     # Turn the amenities column into a list  
     df["Amenities"] = df["Amenities"].str.split(", ")  
-  
-    # Turn the floorplan to a clickable link  
-    # df["Floorplan"] = df["Floorplan"].apply(lambda x: f"[View]({x})" if x else "")  
-  
-    # Display the DataFrame in a sortable table  
-    st.data_editor(
-        df,
-        column_config={
-
-            "Property": st.column_config.TextColumn(),
-            "Size": st.column_config.TextColumn(),
-            "Floorplan": st.column_config.LinkColumn(display_text="View"),
-            "Amenities": st.column_config.ListColumn(),
-        },
-        hide_index=True,
-    )
     
-    st.dataframe(df)
-
+    st.dataframe(df, hide_index=True)
 
 else:  
     st.warning("No data available.")  
