@@ -1,13 +1,9 @@
 import streamlit as st
 
-st.title("🎈 My new app")
-st.write(
-    "Let's start building! For help and inspiration, head over to [docs.streamlit.io](https://docs.streamlit.io/)."
-)
+st.title("Village Unit Analysis")
 
-import requests  
-import json  
-import time
+# import requests
+# import time
 
 # Define the base API endpoint  
 api_url = "https://api.thevillagedallas.com/units/search"
