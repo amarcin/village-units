@@ -1,1 +1,1 @@
-https://village.streamlit.io
+https://village.streamlit.app
