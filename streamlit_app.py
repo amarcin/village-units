@@ -44,24 +44,35 @@ def fetch_units():
   
     return unit_array  
   
-# Automatically fetch data when the app loads  
-unit_data = fetch_units()  
+# Function to display the data  
+def display_data():  
+    # Fetch the data  
+    unit_data = fetch_units()  
   
-# Check if data is fetched successfully  
-if unit_data:  
-    # Convert the list of units to a DataFrame  
-    df = pd.DataFrame(unit_data)  
+    # Check if data is fetched successfully  
+    if unit_data:  
+        # Convert the list of units to a DataFrame  
+        df = pd.DataFrame(unit_data)  
   
-    # Reset the index  
-    df = df.reset_index(drop=True)  
+        # Reset the index  
+        df = df.reset_index(drop=True)  
   
-    # Reorder the columns  
-    df = df[["Unit", "Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]
+        # Reorder the columns  
+        df = df[["Unit", "Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]  
   
-    # Turn the amenities column into a list  
-    df["Amenities"] = df["Amenities"].str.split(", ")  
-    
-    st.dataframe(df, hide_index=True)
-
-else:  
-    st.warning("No data available.")  
+        # Turn the amenities column into a list  
+        df["Amenities"] = df["Amenities"].str.split(", ")  
+        
+        st.dataframe(df, hide_index=True)  
+  
+    else:  
+        st.warning("No data available.")  
+  
+# Display the data when the app first loads  
+display_data()  
+  
+# Add a refresh button at the bottom of the chart  
+if st.button("Refresh Data"):  
+    # Clear the cache and fetch the data again  
+    fetch_units.clear()  
+    display_data()  
