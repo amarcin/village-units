@@ -5,7 +5,7 @@ import requests
 st.title("Village Unit Analysis")  
   
 # Define the base API endpoint  
-api_url = "https://api.thevillagedallas.com/units/search"  
+url = "https://api.thevillagedallas.com/units/search"  
   
 # Function to fetch data from the API with caching  
 @st.cache_data(show_spinner=True)  
@@ -15,15 +15,15 @@ def fetch_units():
     limit = 10  
   
     while True:  
-        response = requests.get(api_url, params={"page": page, "limit": limit})  
+        r = requests.get(url, params={"page": page, "limit": limit})  
   
-        if response.status_code != 200:  
-            st.error(f"Failed to get data. Status code: {response.status_code}")  
+        if r.status_code != 200:  
+            st.error(f"Failed to get data. Status code: {r.status_code}")  
             return None  
   
-        data = response.json()  
+        data = r.json()
         units = data.get("units", [])  
-  
+
         for unit in units:  
             selected_unit = {  
                 "Rent": unit.get("rent"),  
@@ -76,3 +76,14 @@ if st.button("Refresh Data"):
     # Clear the cache and fetch the data again  
     fetch_units.clear()  
     display_data()  
+
+# Add a disclaimer on the bottom of the app
+
+# SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
+
+st.write('''
+# Upcoming features
+- Better sorts and filters
+- Price drop notifications
+- Price tracker
+''')
