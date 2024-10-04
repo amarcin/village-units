@@ -1,11 +1,11 @@
 import streamlit as st  
 import pandas as pd  
 import requests  
-  
-st.title("Village Unit Analysis")  
-  
+
 # Define the base API endpoint  
-url = "https://api.thevillagedallas.com/units/search"  
+url = "https://api.thevillagedallas.com/units/search" 
+
+st.title("Village Unit Analysis")   
   
 # Function to fetch data from the API with caching  
 @st.cache_data(show_spinner=True)  
@@ -26,13 +26,13 @@ def fetch_units():
 
         for unit in units:  
             selected_unit = {  
-                "Rent": unit.get("rent"),  
-                "Building": unit.get("building"),  
                 "Unit": unit.get("unit_number"),  
-                "Available": unit.get("availability"),  
-                "Property": unit.get("property", {}).get("name"),  
+                "Rent": unit.get("rent"),  
+                "Property": unit.get("property", {}).get("name"),
                 "Size": unit.get("floorplan", {}).get("name"),  
+                "Available": unit.get("availability"),  
                 "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),  
+                "Building": unit.get("building"), 
                 "Amenities": ", ".join(unit.get("amenities", []))  
             }  
             unit_array.append(selected_unit)  
@@ -41,7 +41,7 @@ def fetch_units():
             break  
   
         page += 1  
-  
+    st.success("Data fetched successfully!")
     return unit_array  
   
 # Function to display the data  
@@ -55,13 +55,10 @@ def display_data():
         df = pd.DataFrame(unit_data)  
   
         # Reset the index  
-        df = df.reset_index(drop=True)  
-  
-        # Reorder the columns  
-        df = df[["Unit", "Rent", "Building", "Available", "Property", "Size", "Floorplan", "Amenities"]]  
+        df = df.reset_index(drop=True)
   
         # Turn the amenities column into a list  
-        df["Amenities"] = df["Amenities"].str.split(", ")  
+        df["Amenities"] = df["Amenities"].str.split(", ")
         
         st.dataframe(df, hide_index=True)  
   
@@ -77,13 +74,11 @@ if st.button("Refresh Data"):
     fetch_units.clear()  
     display_data()  
 
-# Add a disclaimer on the bottom of the app
-
-# SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
-
 st.write('''
 # Upcoming features
 - Better sorts and filters
 - Price drop notifications
 - Price tracker
 ''')
+
+# Storage brainstorm: SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
