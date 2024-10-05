@@ -1,54 +1,21 @@
-import streamlit as st  
-import pandas as pd  
-import requests  
+import streamlit as st
+import pandas as pd
+import requests
 
-# Define the base API endpoint  
-url = "https://api.thevillagedallas.com/units/search" 
+# Define the base API endpoint
+url = "https://api.thevillagedallas.com/units/search"
 
-st.title("Village Unit Analysis")   
+st.title("Village Unit Analysis")
 
 dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
 
-# Function to fetch data from the API with caching  
-@st.cache_data(show_spinner=True)  
+# Function to fetch data from the API with caching
+@st.cache_data(show_spinner=True)
 def fetch_units():
-    session = requests.Session()
-    page = 1
-    limit = 10
-    unit_array = []
-    
-    units = ['placeholder']  # Initialize with a non-empty list to enter the loop
-
-    while units:
-        r = session.get(url, params={"page": page, "limit": limit})
-
-        if r.status_code != 200:
-            st.error(f"Failed to get data. Status code: {r.status_code}")
-            return None
-
-        data = r.json()
-        units = data.get("units", [])
-
-        unit_array.extend([
-            {
-                "Unit": unit.get("unit_number"),
-                "Rent": unit.get("rent"),
-                "Property": unit.get("property", {}).get("name"),
-                "Size": unit.get("floorplan", {}).get("name"),
-                "Available": unit.get("availability"),
-                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
-                "Building": unit.get("building"),
-                "Amenities": ", ".join(unit.get("amenities", []))
-            } for unit in units
-        ])
-
-        page += 1
-
-    return unit_array  # Return the list directly
+    # ... (keep the rest of this function as is)
 
 # Function to display the data
-def display_data():
-    data_container = st.empty()
+def display_data(container):
     unit_data = fetch_units()
 
     if unit_data:
@@ -62,25 +29,28 @@ def display_data():
         df["Amenities"] = df["Amenities"].str.split(", ")
 
         # Clear the container and display the new dataframe
-        with data_container.container():
-            st.dataframe(df, hide_index=True,
-                column_config={
-                    "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
-                }
-            )
+        container.dataframe(df, hide_index=True,
+            column_config={
+                "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
+            }
+        )
     else:
-        st.warning("No data available.")
+        container.warning("No data available.")
 
 # Display the data when the app first loads
 with dataTab:
     st.header("Current Data")
-    display_data()
-  
+    
+    # Create the container outside the function
+    data_container = st.empty()
+    
+    display_data(data_container)
+
     # Add a refresh button at the bottom of the chart
     if st.button("Refresh", icon="🔄"):
         # Clear the cache and fetch the data again
         fetch_units.clear()
-        display_data()
+        display_data(data_container)
 
 with aboutTab:
     st.header("About")
