@@ -85,7 +85,7 @@ with dataTab:
     st.header("Current Data")
     display_data()
     # Add a refresh button at the bottom of the chart  
-    if st.button("Refresh Data", icon="Counterclockwise Arrows"):  
+    if st.button("Refresh Data", icon="🔄"):  
         # Clear the cache and fetch the data again  
         fetch_units.clear()  
         display_data()  
