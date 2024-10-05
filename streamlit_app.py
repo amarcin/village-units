@@ -68,11 +68,11 @@ def display_data():
         st.dataframe(df, hide_index=True,
             column_config={
                 # "Unit": st.column_config.TextColumn("Unit"),
-                "Rent": st.column_config.TextColumn(format="$%d"),
+                #"Rent": st.column_config.TextColumn(format="$%d"),
                 #"Property": st.column_config.TextColumn("Property"),
                 #"Size": st.column_config.TextColumn("Size"),
                 #"Available": st.column_config.TextColumn("Available"),
-                #"Floorplan": st.column_config.ImageColumn("Floorplan"),
+                "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
                 #"Building": st.column_config.TextColumn("Building"),
                 #˝"Amenities": st.column_config.ListColumn("Amenities")
             }
