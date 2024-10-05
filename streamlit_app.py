@@ -48,7 +48,7 @@ def fetch_units():
 
 # Function to display the data
 def display_data():
-    data_container = st.container()
+    data_container = st.empty()
     unit_data = fetch_units()
 
     if unit_data:
