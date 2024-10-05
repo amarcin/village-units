@@ -62,9 +62,22 @@ def display_data():
   
         # Turn the amenities column into a list  
         df["Amenities"] = df["Amenities"].str.split(", ")
+
+        # UI Updates
         
-        st.dataframe(df, hide_index=True)  
-  
+        st.dataframe(df, hide_index=True,
+            column_config={
+                # "Unit": st.column_config.TextColumn("Unit"),
+                "Rent": st.column_config.NumberColumn(format="$%d"),
+                #"Property": st.column_config.TextColumn("Property"),
+                #"Size": st.column_config.TextColumn("Size"),
+                #"Available": st.column_config.TextColumn("Available"),
+                #"Floorplan": st.column_config.ImageColumn("Floorplan"),
+                #"Building": st.column_config.TextColumn("Building"),
+                #˝"Amenities": st.column_config.ListColumn("Amenities")
+            }
+        )  
+
     else:  
         st.warning("No data available.")  
   
