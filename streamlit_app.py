@@ -61,7 +61,12 @@ def display_data(container):
         df["Amenities"] = df["Amenities"].str.split(", ")
 
         # Clear the container and display the new dataframe
-        container.dataframe(df, hide_index=True,
+        with container:
+            _, right_column = st.columns([3, 1])
+            with right_column:
+                st.write(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
+
+        st.dataframe(df, hide_index=True,
             column_config={
                 "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
             }
@@ -71,7 +76,7 @@ def display_data(container):
 
 # Display the data when the app first loads
 with dataTab:
-    st.header("Current Data")
+    st.header("Today's Prices")
   
     # Create the container outside the function
     data_container = st.empty()
