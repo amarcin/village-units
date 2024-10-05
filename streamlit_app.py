@@ -6,11 +6,11 @@ import requests
 url = "https://api.thevillagedallas.com/units/search" 
 
 st.title("Village Unit Analysis")   
-  
+
+dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
+
 # Function to fetch data from the API with caching  
 @st.cache_data(show_spinner=True)  
-
-@st.cache_data
 def fetch_units():
     session = requests.Session()
     page = 1
@@ -46,7 +46,6 @@ def fetch_units():
 
     return unit_array  # Return the list directly
 
-  
 # Function to display the data  
 def display_data():  
     # Fetch the data  
@@ -82,13 +81,15 @@ def display_data():
         st.warning("No data available.")  
   
 # Display the data when the app first loads  
-display_data()  
-  
-# Add a refresh button at the bottom of the chart  
-if st.button("Refresh Data"):  
-    # Clear the cache and fetch the data again  
-    fetch_units.clear()  
-    display_data()  
+with dataTab:
+    st.header("Current Data")
+    display_data()
+    # Add a refresh button at the bottom of the chart  
+    if st.button("Refresh Data", icon="refresh"):  
+        # Clear the cache and fetch the data again  
+        fetch_units.clear()  
+        display_data()  
+
 
 st.write('''
 # Upcoming features
