@@ -46,49 +46,44 @@ def fetch_units():
 
     return unit_array  # Return the list directly
 
-# Function to display the data  
-def display_data():  
-    # Fetch the data  
-    unit_data = fetch_units()  
-  
-    # Check if data is fetched successfully  
-    if unit_data:  
-        # Convert the list of units to a DataFrame  
-        df = pd.DataFrame(unit_data)  
-  
-        # Reset the index  
+data_container = st.empty()
+
+# Function to display the data
+def display_data():
+    # Fetch the data
+    unit_data = fetch_units()
+
+    # Check if data is fdataframeccessfully
+    if unit_data:
+        # Convert the list of units to a DataFrame
+        df = pd.DataFrame(unit_data)
+
+        # Reset the index
         df = df.reset_index(drop=True)
-  
-        # Turn the amenities column into a list  
+
+        # Turn the amenities column into a list
         df["Amenities"] = df["Amenities"].str.split(", ")
 
-        # UI Updates
-        
-        st.dataframe(df, hide_index=True,
-            column_config={
-                # "Unit": st.column_config.TextColumn("Unit"),
-                #"Rent": st.column_config.TextColumn(format="$%d"),
-                #"Property": st.column_config.TextColumn("Property"),
-                #"Size": st.column_config.TextColumn("Size"),
-                #"Available": st.column_config.TextColumn("Available"),
-                "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
-                #"Building": st.column_config.TextColumn("Building"),
-                #˝"Amenities": st.column_config.ListColumn("Amenities")
-            }
-        )  
+        # Clear the container and display the new dataframe
+        with data_container.container():
+            st.dataframe(df, hide_index=True,
+                column_config={
+                    "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
+                }
+            )
+    else:
+        st.warning("No data available.")
 
-    else:  
-        st.warning("No data available.")  
-  
-# Display the data when the app first loads  
+# Display the data when the app first loads
 with dataTab:
     st.header("Current Data")
     display_data()
-    # Add a refresh button at the bottom of the chart  
-    if st.button("Refresh", icon="🔄"):  
-        # Clear the cache and fetch the data again  
-        fetch_units.clear()  
-        display_data()  
+  
+    # Add a refresh button at the bottom of the chart
+    if st.button("Refresh", icon="🔄"):
+        # Clear the cache and fetch the data again
+        fetch_units.clear()
+        display_data()
 
 
 st.write('''
