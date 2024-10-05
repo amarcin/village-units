@@ -9,24 +9,27 @@ st.title("Village Unit Analysis")
   
 # Function to fetch data from the API with caching  
 @st.cache_data(show_spinner=True)  
+
+@st.cache_data
 def fetch_units():
     session = requests.Session()
     page = 1
     limit = 10
-  
+    unit_array = []
+    
     units = ['placeholder']  # Initialize with a non-empty list to enter the loop
 
-    while units:  # This replaces 'while True'
+    while units:
         r = session.get(url, params={"page": page, "limit": limit})
 
         if r.status_code != 200:
             st.error(f"Failed to get data. Status code: {r.status_code}")
-            return
+            return None
 
         data = r.json()
         units = data.get("units", [])
 
-        yield from (
+        unit_array.extend([
             {
                 "Unit": unit.get("unit_number"),
                 "Rent": unit.get("rent"),
@@ -37,9 +40,11 @@ def fetch_units():
                 "Building": unit.get("building"),
                 "Amenities": ", ".join(unit.get("amenities", []))
             } for unit in units
-        )
+        ])
 
         page += 1
+
+    return unit_array  # Return the list directly
 
   
 # Function to display the data  
@@ -80,3 +85,4 @@ st.write('''
 ''')
 
 # Storage brainstorm: SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
+
