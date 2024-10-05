@@ -62,8 +62,10 @@ def display_data(container):
 
         # Clear the container and display the new dataframe
         with container:
-            _, right_column = st.columns([3, 1])
-            with right_column:
+            leftCol, rightCol = st.columns([3, 1])
+            leftCol.caption("Data as of " + pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p'))
+            leftCol.dataframe(df, hide_index=True)
+            with rightCol:
                 st.write(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
 
         st.dataframe(df, hide_index=True,
