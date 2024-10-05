@@ -9,40 +9,38 @@ st.title("Village Unit Analysis")
   
 # Function to fetch data from the API with caching  
 @st.cache_data(show_spinner=True)  
-def fetch_units():  
-    unit_array = []  
-    page = 1  
-    limit = 10  
+def fetch_units():
+    session = requests.Session()
+    page = 1
+    limit = 10
   
-    while True:  
-        r = requests.get(url, params={"page": page, "limit": limit})  
-  
-        if r.status_code != 200:  
-            st.error(f"Failed to get data. Status code: {r.status_code}")  
-            return None  
-  
-        data = r.json()
-        units = data.get("units", [])  
+    units = ['placeholder']  # Initialize with a non-empty list to enter the loop
 
-        for unit in units:  
-            selected_unit = {  
-                "Unit": unit.get("unit_number"),  
-                "Rent": unit.get("rent"),  
+    while units:  # This replaces 'while True'
+        r = session.get(url, params={"page": page, "limit": limit})
+
+        if r.status_code != 200:
+            st.error(f"Failed to get data. Status code: {r.status_code}")
+            return
+
+        data = r.json()
+        units = data.get("units", [])
+
+        yield from (
+            {
+                "Unit": unit.get("unit_number"),
+                "Rent": unit.get("rent"),
                 "Property": unit.get("property", {}).get("name"),
-                "Size": unit.get("floorplan", {}).get("name"),  
-                "Available": unit.get("availability"),  
-                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),  
-                "Building": unit.get("building"), 
-                "Amenities": ", ".join(unit.get("amenities", []))  
-            }  
-            unit_array.append(selected_unit)  
-  
-        if len(units) < limit:  
-            break  
-  
-        page += 1  
-    st.success("Data fetched successfully!")
-    return unit_array  
+                "Size": unit.get("floorplan", {}).get("name"),
+                "Available": unit.get("availability"),
+                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
+                "Building": unit.get("building"),
+                "Amenities": ", ".join(unit.get("amenities", []))
+            } for unit in units
+        )
+
+        page += 1
+
   
 # Function to display the data  
 def display_data():  
