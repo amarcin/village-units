@@ -46,14 +46,11 @@ def fetch_units():
 
     return unit_array  # Return the list directly
 
-data_container = st.empty()
-
 # Function to display the data
 def display_data():
-    # Fetch the data
+    data_container = st.container()
     unit_data = fetch_units()
 
-    # Check if data is fdataframeccessfully
     if unit_data:
         # Convert the list of units to a DataFrame
         df = pd.DataFrame(unit_data)
