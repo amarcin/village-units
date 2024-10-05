@@ -85,13 +85,17 @@ with dataTab:
         fetch_units.clear()
         display_data()
 
-
-st.write('''
-# Upcoming features
-- Better sorts and filters
-- Price drop notifications
-- Price tracker
-''')
+with aboutTab:
+    st.header("About")
+    st.write("This app allows you to view and analyze unit data from the Village Dallas API.")
+    st.write("The data is fetched from the API and stored in a DataFrame for easy manipulation and display.")
+    st.write("The app is built using Streamlit, a popular Python library for creating data apps.")
+    st.write('''
+        ## Upcoming features
+        - Better sorts and filters
+        - Price drop notifications
+        - Price tracker
+    ''')
 
 # Storage brainstorm: SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
 
