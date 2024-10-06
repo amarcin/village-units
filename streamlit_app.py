@@ -85,7 +85,7 @@ with dataTab:
     if st.button("Refresh", icon="🔄"):
         # Clear the cache and fetch the data again
         fetch_units.clear()
-        display_data(data_container)
+        display_data()
 
 with aboutTab:
     st.markdown("""
