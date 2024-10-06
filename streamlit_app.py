@@ -1,16 +1,17 @@
-import streamlit as st  
-import pandas as pd  
-import requests  
+import streamlit as st
+import pandas as pd
+import requests
+from datetime import datetime
 
-# Define the base API endpoint  
-url = "https://api.thevillagedallas.com/units/search" 
+# Define the base API endpoint
+url = "https://api.thevillagedallas.com/units/search"
 
-st.title("Village Unit Analysis")   
+st.title("Village Unit Analysis")
 
 dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
 
-# Function to fetch data from the API with caching  
-@st.cache_data(show_spinner=True)  
+# Function to fetch data from the API with caching
+@st.cache_data(show_spinner=True)
 def fetch_units():
     session = requests.Session()
     page = 1
@@ -44,19 +45,16 @@ def fetch_units():
 
         page += 1
 
-    return unit_array  # Return the list directly
+    return pd.DataFrame(unit_array)
 
-# Function to display the data
-def display_data():
-    unit_data = fetch_units()
+with dataTab:
+    st.header("Today's Rates")
+    st.caption(f"Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
 
-    if unit_data:
-        # Convert the list of units to a DataFrame
-        df = pd.DataFrame(unit_data)
+    # Fetch and display data
+    df = fetch_units()
 
-        # Reset the index
-        df = df.reset_index(drop=True)
-
+    if df is not None and not df.empty:
         # Turn the amenities column into a list
         df["Amenities"] = df["Amenities"].str.split(", ")
 
@@ -68,24 +66,11 @@ def display_data():
     else:
         st.warning("No data available.")
 
-# Display the data when the app first loads
-with dataTab:  
-    # Create the container outside the function
-    data_container = st.empty()
-  
-    # Clear the container and display the new dataframe
-    with data_container:
-        leftCol, rightCol = st.columns([3, 1])
-        leftCol.header("Today's Rates")
-        with rightCol:
-            st.caption(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
-        display_data()
-
     # Add a refresh button at the bottom of the chart
     if st.button("Refresh", icon="🔄"):
         # Clear the cache and fetch the data again
         fetch_units.clear()
-        display_data()
+        st.rerun()
 
 with aboutTab:
     st.markdown("""
@@ -103,7 +88,3 @@ with aboutTab:
 
 with trackerTab:
     st.header("Tracker")
-
-
-# Storage brainstorm: SQL() PostgreSQL, DynamoDB, Aurora (serverless SQL), S3, 
-
