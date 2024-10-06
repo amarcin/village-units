@@ -47,7 +47,7 @@ def fetch_units():
     return unit_array  # Return the list directly
 
 # Function to display the data
-def display_data(container):
+def display_data():
     unit_data = fetch_units()
 
     if unit_data:
@@ -60,13 +60,13 @@ def display_data(container):
         # Turn the amenities column into a list
         df["Amenities"] = df["Amenities"].str.split(", ")
 
-        return st.dataframe(df, hide_index=True,
+        st.dataframe(df, hide_index=True,
             column_config={
                 "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
             }
         )
     else:
-        container.warning("No data available.")
+        st.warning("No data available.")
 
 # Display the data when the app first loads
 with dataTab:  
@@ -79,7 +79,7 @@ with dataTab:
         leftCol.header("Today's Rates")
         with rightCol:
             st.caption(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
-        display_data(data_container)
+        display_data()
 
     # Add a refresh button at the bottom of the chart
     if st.button("Refresh", icon="🔄"):
