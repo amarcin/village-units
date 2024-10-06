@@ -79,8 +79,6 @@ with dataTab:
 
 with aboutTab:
     st.markdown("""
-        # About
-
         This app allows you to view and analyze unit data from the Village Dallas API. 
         The data is fetched from the API and stored in a DataFrame for easy manipulation and display. 
         The app is built using Streamlit, a popular Python library for creating data apps.
