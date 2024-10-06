@@ -60,14 +60,6 @@ def display_data(container):
         # Turn the amenities column into a list
         df["Amenities"] = df["Amenities"].str.split(", ")
 
-        # Clear the container and display the new dataframe
-        with container:
-            leftCol, rightCol = st.columns([3, 1])
-            leftCol.caption("Data as of " + pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p'))
-            leftCol.dataframe(df, hide_index=True)
-            with rightCol:
-                st.write(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
-
         st.dataframe(df, hide_index=True,
             column_config={
                 "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
@@ -77,13 +69,17 @@ def display_data(container):
         container.warning("No data available.")
 
 # Display the data when the app first loads
-with dataTab:
-    st.header("Today's Prices")
-  
+with dataTab:  
     # Create the container outside the function
     data_container = st.empty()
   
-    display_data(data_container)
+    # Clear the container and display the new dataframe
+    with data_container:
+        leftCol, rightCol = st.columns([3, 1])
+        leftCol.header("Today's Rates")
+        with rightCol:
+            st.caption(f"Last updated: {pd.Timestamp.now().strftime('%B %d, %Y at %I:%M %p')}")
+        display_data(data_container)
 
     # Add a refresh button at the bottom of the chart
     if st.button("Refresh", icon="🔄"):
