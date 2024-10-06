@@ -60,7 +60,7 @@ def display_data(container):
         # Turn the amenities column into a list
         df["Amenities"] = df["Amenities"].str.split(", ")
 
-        st.dataframe(df, hide_index=True,
+        return st.dataframe(df, hide_index=True,
             column_config={
                 "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
             }
