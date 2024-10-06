@@ -11,7 +11,7 @@ st.title("Village Unit Analysis")
 dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
 
 # Function to fetch data from the API with caching
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=True, ttl=3600)  # Cache for 1 hour
 def fetch_units():
     session = requests.Session()
     page = 1
@@ -45,14 +45,13 @@ def fetch_units():
 
         page += 1
 
-    return pd.DataFrame(unit_array)
+    return pd.DataFrame(unit_array), datetime.now()
 
 with dataTab:
     st.header("Today's Rates")
-    st.caption(f"Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
 
     # Fetch and display data
-    df = fetch_units()
+    df, last_updated = fetch_units()
 
     if df is not None and not df.empty:
         # Turn the amenities column into a list
@@ -63,14 +62,18 @@ with dataTab:
                 "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
             }
         )
+
+        # Display the timestamp after the DataFrame
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.caption(f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}")
+        with col2:
+            if st.button("Refresh", icon="🔄"):
+                # Clear the cache and fetch the data again
+                fetch_units.clear()
+                st.rerun()
     else:
         st.warning("No data available.")
-
-    # Add a refresh button at the bottom of the chart
-    if st.button("Refresh", icon="🔄"):
-        # Clear the cache and fetch the data again
-        fetch_units.clear()
-        st.rerun()
 
 with aboutTab:
     st.markdown("""
