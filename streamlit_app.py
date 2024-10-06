@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Define the base API endpoint
 url = "https://api.thevillagedallas.com/units/search"
@@ -11,7 +12,7 @@ st.title("Village Unit Analysis")
 dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
 
 # Function to fetch data from the API with caching
-@st.cache_data(show_spinner=True, ttl=3600)  # Cache for 1 hour
+@st.cache_data(show_spinner=True, ttl=21600)  # Cache for 1 hour
 def fetch_units():
     session = requests.Session()
     page = 1
@@ -35,9 +36,10 @@ def fetch_units():
                 "Unit": unit.get("unit_number"),
                 "Rent": unit.get("rent"),
                 "Property": unit.get("property", {}).get("name"),
-                "Size": unit.get("floorplan", {}).get("name"),
-                "Available": unit.get("availability"),
+                "Beds": unit.get("floorplan", {}).get("beds"),
+                "Sqft": unit.get("floorplan", {}).get("sqft"),
                 "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
+                "Available": unit.get("availability"),
                 "Building": unit.get("building"),
                 "Amenities": ", ".join(unit.get("amenities", []))
             } for unit in units
@@ -45,7 +47,7 @@ def fetch_units():
 
         page += 1
 
-    return pd.DataFrame(unit_array), datetime.now()
+    return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 with dataTab:
     st.header("Today's Rates")
@@ -84,9 +86,9 @@ with aboutTab:
         The app is built using Streamlit, a popular Python library for creating data apps.
 
         ##  Upcoming features
-        - Better sorts and filters
+        - Better filters
         - Price drop notifications
-        - Price tracker
+        - Price tracker over time
     """)
 
 with trackerTab:
