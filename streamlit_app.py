@@ -65,6 +65,25 @@ def fetch_units():
 with histDataTab:
     st.header("Historical Data")
     st.write("This is the Historical Data tab.")
+
+    def load_and_display_data():
+        s3_path = f"s3://{BUCKET}/{PREFIX}/properties/"
+      
+        # List all Parquet objects under the specified path
+        objects = wr.s3.list_objects(s3_path, suffix='.parquet')
+      
+        for obj in objects:
+            # Read the Parquet file
+            df = wr.s3.read_parquet(path=obj)
+          
+            # Display the data with a caption
+            st.subheader(f"Path: {obj}")
+            st.caption(f"Number of objects: {len(df)}")
+            st.write(df)
+            st.divider()  # Add a divider between datasets
+
+    # Load and display the data
+    load_and_display_data()
     
     @st.cache_data(ttl=3600, show_spinner=True)
     def load_data():
@@ -81,8 +100,6 @@ with histDataTab:
             return None
 
     # Load the data
-    st.clear()
-    st.rerun()
     data = load_data()
 
     # Display the data in Streamlit
