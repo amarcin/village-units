@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import boto3
 import awswrangler as wr
 import pandas as pd
 import requests
@@ -64,18 +65,31 @@ def fetch_units():
 with histDataTab:
     st.header("Historical Data")
     st.write("This is the Historical Data tab.")
-
-    # Read the Parquet data from S3
+    
+    @st.cache_data(ttl=3600, show_spinner=True)
     def load_data():
+        # Create a new boto3 session on each function call
+        boto3_session = boto3.Session()
+        
+        # Use the boto3 session with AWS Wrangler
         s3_path = f"s3://{BUCKET}/{PREFIX}/properties/*/*/*/data.parquet"
-        df = wr.s3.read_parquet(path=s3_path)
-        return df
+        try:
+            df = wr.s3.read_parquet(path=s3_path, boto3_session=boto3_session)
+            return df
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
+            return None
 
     # Load the data
+    st.clear()
+    st.rerun()
     data = load_data()
 
     # Display the data in Streamlit
-    st.write(data)
+    if data is not None:
+        st.write(data)
+    else:
+        st.warning("Failed to load data. Please check your AWS credentials and permissions.")
 
 
 with liveDataTab:
