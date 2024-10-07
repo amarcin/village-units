@@ -1,30 +1,34 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import awswrangler as wr
 import pandas as pd
 import requests
 import streamlit as st
 
 # Define the base API endpoint
 url = "https://api.thevillagedallas.com/units/search"
+BUCKET = "am-apartment-data"
+PREFIX = "lambda-fetch"
 
 st.title("Village Unit Analysis")
 
-dataTab, trackerTab, aboutTab = st.tabs(["Data", "Tracker", "About"])
+histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
+    ["Historical Data", "Live Data", "Tracker", "About"]
+)
 
 
 # Function to fetch data from the API with caching
-@st.cache_data(show_spinner=True, ttl=21600)  # Cache for 1 hour
+@st.cache_data(show_spinner=True, ttl=21600)  # Cache for 6 hours
 def fetch_units():
     session = requests.Session()
     page = 1
-    limit = 10
     unit_array = []
 
-    units = ["placeholder"]  # Initialize with a non-empty list to enter the loop
+    units = ["placeholder"]
 
     while units:
-        r = session.get(url, params={"page": page, "limit": limit})
+        r = session.get(url, params={"page": page})
 
         if r.status_code != 200:
             st.error(f"Failed to get data. Status code: {r.status_code}")
@@ -57,7 +61,24 @@ def fetch_units():
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 
-with dataTab:
+with histDataTab:
+    st.header("Historical Data")
+    st.write("This is the Historical Data tab.")
+
+    # Read the Parquet data from S3
+    def load_data():
+        s3_path = f"s3://{BUCKET}/{PREFIX}/properties/*/*/*/data.parquet"
+        df = wr.s3.read_parquet(path=s3_path)
+        return df
+
+    # Load the data
+    data = load_data()
+
+    # Display the data in Streamlit
+    st.write(data)
+
+
+with liveDataTab:
     st.header("Today's Rates")
 
     # Fetch and display data
