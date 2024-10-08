@@ -18,7 +18,35 @@ st.title("Village Unit Analysis")
 # Function to fetch data from the API with caching
 @st.cache_data(show_spinner=True, ttl=21600)  # Cache for 6 hours
 def fetch_units():
-    # ... (keep this function as is)
+    session = requests.Session()
+    page = 1
+    unit_array = []
+    units = ["placeholder"]
+
+    while units:
+        r = session.get(url, params={"page": page})
+        if r.status_code != 200:
+            st.error(f"Failed to get data. Status code: {r.status_code}")
+            return None
+        data = r.json()
+        units = data.get("units", [])
+        unit_array.extend([
+            {
+                "Unit": unit.get("unit_number"),
+                "Rent": unit.get("rent"),
+                "Property": unit.get("property", {}).get("name"),
+                "Beds": unit.get("floorplan", {}).get("beds"),
+                "Sqft": unit.get("floorplan", {}).get("sqft"),
+                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
+                "Available": unit.get("availability"),
+                "Building": unit.get("building"),
+                "Amenities": ", ".join(unit.get("amenities", [])),
+            }
+            for unit in units
+        ])
+        page += 1
+
+    return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 # Function to list all Parquet files in the S3 bucket
 @st.cache_data(ttl=3600, show_spinner=True)
