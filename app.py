@@ -75,7 +75,10 @@ def load_historical_data():
             st.warning(f"Error reading file {file}: {str(e)}")
     
     if all_data:
-        return pd.concat(all_data, ignore_index=True)
+        combined_data = pd.concat(all_data, ignore_index=True)
+        # Convert fetch_datetime to datetime type
+        combined_data['fetch_datetime'] = pd.to_datetime(combined_data['fetch_datetime'])
+        return combined_data
     else:
         st.error("No data could be loaded.")
         return None
@@ -90,52 +93,57 @@ with histDataTab:
     st.header("Historical Data")
 
     # Load historical data
-    if st.button("Load Historical Data"):
-        historical_data = load_historical_data()
+    if 'historical_data' not in st.session_state:
+        st.session_state.historical_data = None
 
-        if historical_data is not None:
-            # Property filter
-            properties = historical_data['property_name'].unique()
-            selected_property = st.selectbox("Select Property", properties)
+    if st.button("Load Historical Data") or st.session_state.historical_data is None:
+        st.session_state.historical_data = load_historical_data()
 
-            # Filter data based on selected property
-            property_data = historical_data[historical_data['property_name'] == selected_property]
+    if st.session_state.historical_data is not None:
+        # Property filter
+        properties = st.session_state.historical_data['property_name'].unique()
+        selected_property = st.selectbox("Select Property", properties)
 
-            # Display price changes
-            st.subheader("Price Changes")
-            price_changes = property_data.groupby('unit_number').agg({
-                'rent': ['first', 'last', lambda x: x.diff().sum()]
-            })
-            price_changes.columns = ['Initial Rent', 'Current Rent', 'Total Change']
-            price_changes['Percent Change'] = (price_changes['Total Change'] / price_changes['Initial Rent']) * 100
-            st.dataframe(price_changes)
+        # Filter data based on selected property
+        property_data = st.session_state.historical_data[st.session_state.historical_data['property_name'] == selected_property]
 
-            # Rent history graph
-            st.subheader("Rent History")
-            time_periods = {
-                "1 Month": 30,
-                "3 Months": 90,
-                "6 Months": 180,
-                "1 Year": 365,
-                "Max": None
-            }
-            selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
-            
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
+        # Display price changes
+        st.subheader("Price Changes")
+        price_changes = property_data.groupby('unit_number').agg({
+            'rent': ['first', 'last', lambda x: x.diff().sum()]
+        })
+        price_changes.columns = ['Initial Rent', 'Current Rent', 'Total Change']
+        price_changes['Percent Change'] = (price_changes['Total Change'] / price_changes['Initial Rent']) * 100
+        st.dataframe(price_changes)
 
-            filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
-            
-            fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
-            st.plotly_chart(fig)
+        # Rent history graph
+        st.subheader("Rent History")
+        time_periods = {
+            "1 Month": 30,
+            "3 Months": 90,
+            "6 Months": 180,
+            "1 Year": 365,
+            "Max": None
+        }
+        selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
 
-            # Specific unit price history
-            st.subheader("Specific Unit Price History")
-            selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
-            unit_data = property_data[property_data['unit_number'] == selected_unit]
-            
-            fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
-            st.plotly_chart(fig_unit)
+        filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
+        
+        fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
+        st.plotly_chart(fig)
+
+        # Specific unit price history
+        st.subheader("Specific Unit Price History")
+        selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
+        unit_data = property_data[property_data['unit_number'] == selected_unit]
+        
+        fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
+        st.plotly_chart(fig_unit)
+    else:
+        st.warning("No historical data available. Please load the data first.")
 
 # Live Data Tab
 with liveDataTab:
