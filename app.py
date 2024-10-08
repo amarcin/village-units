@@ -3,9 +3,9 @@ import awswrangler as wr
 import pandas as pd
 import requests
 import streamlit as st
-import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
+import plotly.express as px
 
 # Define the base API endpoint
 url = "https://api.thevillagedallas.com/units/search"
@@ -63,71 +63,61 @@ def fetch_units():
 @st.cache_data(ttl=3600, show_spinner=True)
 def load_historical_data():
     boto3_session = boto3.Session()
-    s3_path = f"s3://{BUCKET}/{PREFIX}/properties/*/*/*/data.parquet"
+    s3_path = f"s3://{BUCKET}/{PREFIX}/property-a/*/data.parquet"
     try:
         df = wr.s3.read_parquet(path=s3_path, boto3_session=boto3_session)
+        df['date'] = pd.to_datetime(df['date'])
         return df
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
 
-def analyze_price_changes(df):
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values(['Unit', 'Date'])
-    df['PreviousRent'] = df.groupby('Unit')['Rent'].shift(1)
-    df['PriceChange'] = df['Rent'] - df['PreviousRent']
-    df['PercentageChange'] = (df['PriceChange'] / df['PreviousRent']) * 100
-    return df[df['PriceChange'] != 0].dropna()
+def get_properties(df):
+    return sorted(df['Property'].unique())
 
-def plot_rent_history(df, time_range):
-    end_date = df['Date'].max()
-    if time_range == '1mo':
-        start_date = end_date - timedelta(days=30)
-    elif time_range == '3mo':
-        start_date = end_date - timedelta(days=90)
-    elif time_range == '6mo':
-        start_date = end_date - timedelta(days=180)
-    elif time_range == '1yr':
-        start_date = end_date - timedelta(days=365)
-    else:  # MAX
-        start_date = df['Date'].min()
+def calculate_price_changes(df):
+    df_sorted = df.sort_values(['Unit', 'date'])
+    df_sorted['PriceChange'] = df_sorted.groupby('Unit')['Rent'].diff()
+    return df_sorted
 
-    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-    fig = px.line(filtered_df, x='Date', y='Rent', color='Unit', title=f'Rent History - {time_range}')
+def plot_rent_history(df, property, time_range):
+    df_filtered = df[df['Property'] == property]
+    if time_range != 'MAX':
+        end_date = df_filtered['date'].max()
+        start_date = end_date - pd.Timedelta(time_range)
+        df_filtered = df_filtered[df_filtered['date'] >= start_date]
+    
+    fig = px.line(df_filtered, x='date', y='Rent', color='Unit', title=f'Rent History for {property}')
     return fig
 
 with histDataTab:
     st.header("Historical Data")
-
-    if st.button("Load Historical Data"):
-        data = load_historical_data()
-
-        if data is not None:
-            # Property filter
-            properties = sorted(data['Property'].unique())
-            selected_property = st.selectbox("Select Property", properties)
+    
+    data = load_historical_data()
+    
+    if data is not None:
+        properties = get_properties(data)
+        selected_property = st.selectbox("Select a property", properties)
+        
+        if st.button("Load Data"):
             filtered_data = data[data['Property'] == selected_property]
-
-            # Analyze price changes
-            price_changes = analyze_price_changes(filtered_data)
+            
             st.subheader("Price Changes")
-            st.dataframe(price_changes[['Date', 'Unit', 'Rent', 'PreviousRent', 'PriceChange', 'PercentageChange']])
-
-            # Rent history graph
+            price_changes = calculate_price_changes(filtered_data)
+            st.dataframe(price_changes[['date', 'Unit', 'Rent', 'PriceChange']].dropna())
+            
             st.subheader("Rent History")
-            time_range = st.selectbox("Select Time Range", ['1mo', '3mo', '6mo', '1yr', 'MAX'])
-            fig = plot_rent_history(filtered_data, time_range)
+            time_range = st.selectbox("Select time range", ['1mo', '3mo', '6mo', '1yr', 'MAX'])
+            fig = plot_rent_history(filtered_data, selected_property, time_range)
             st.plotly_chart(fig)
-
-            # Specific unit's price history
-            st.subheader("Unit Price History")
+            
+            st.subheader("Specific Unit Price History")
             units = sorted(filtered_data['Unit'].unique())
-            selected_unit = st.selectbox("Select Unit", units)
+            selected_unit = st.selectbox("Select a unit", units)
             unit_data = filtered_data[filtered_data['Unit'] == selected_unit]
-            unit_fig = px.line(unit_data, x='Date', y='Rent', title=f'Price History for Unit {selected_unit}')
-            st.plotly_chart(unit_fig)
-        else:
-            st.warning("Failed to load data. Please check your AWS credentials and permissions.")
+            st.line_chart(unit_data.set_index('date')['Rent'])
+    else:
+        st.warning("Failed to load data. Please check your AWS credentials and permissions.")
 
 with liveDataTab:
     st.header("Today's Rates")
@@ -136,16 +126,10 @@ with liveDataTab:
         df, last_updated = fetch_units()
 
         if df is not None and not df.empty:
-            # Property filter
-            properties = sorted(df['Property'].unique())
-            selected_property = st.selectbox("Select Property", properties)
-            filtered_df = df[df['Property'] == selected_property]
-
-            # Turn the amenities column into a list
-            filtered_df["Amenities"] = filtered_df["Amenities"].str.split(", ")
+            df["Amenities"] = df["Amenities"].str.split(", ")
 
             st.dataframe(
-                filtered_df,
+                df,
                 hide_index=True,
                 column_config={
                     "Floorplan": st.column_config.LinkColumn(
@@ -154,7 +138,6 @@ with liveDataTab:
                 },
             )
 
-            # Display the timestamp after the DataFrame
             st.caption(
                 f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}"
             )
@@ -170,18 +153,13 @@ with aboutTab:
 
         ##  Features
         - Historical data analysis with price change tracking
-        - Rent history graphs with customizable time ranges
-        - Specific unit price history visualization
-        - Live data fetching with property filtering
-        - Easy-to-use interface with data refresh options
+        - Rent history visualization
+        - Specific unit price history
+        - Live data fetching
+        - Property-based filtering
 
         ##  Upcoming features
-        - Better filters
         - Price drop notifications
-        - Enhanced data visualization options
+        - Advanced filtering options
     """
     )
-
-# Tracker tab can be implemented in the future if needed
-# with trackerTab:
-#     st.header("Tracker")
