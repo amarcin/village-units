@@ -18,46 +18,38 @@ st.title("Village Unit Analysis")
 # Function to fetch data from the API with caching
 @st.cache_data(show_spinner=True, ttl=21600)  # Cache for 6 hours
 def fetch_units():
-    session = requests.Session()
-    page = 1
-    unit_array = []
-    units = ["placeholder"]
+    # ... (keep this function as is)
 
-    while units:
-        r = session.get(url, params={"page": page})
-        if r.status_code != 200:
-            st.error(f"Failed to get data. Status code: {r.status_code}")
-            return None
-        data = r.json()
-        units = data.get("units", [])
-        unit_array.extend([
-            {
-                "Unit": unit.get("unit_number"),
-                "Rent": unit.get("rent"),
-                "Property": unit.get("property", {}).get("name"),
-                "Beds": unit.get("floorplan", {}).get("beds"),
-                "Sqft": unit.get("floorplan", {}).get("sqft"),
-                "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
-                "Available": unit.get("availability"),
-                "Building": unit.get("building"),
-                "Amenities": ", ".join(unit.get("amenities", [])),
-            }
-            for unit in units
-        ])
-        page += 1
-
-    return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
+# Function to list all Parquet files in the S3 bucket
+@st.cache_data(ttl=3600, show_spinner=True)
+def list_parquet_files():
+    boto3_session = boto3.Session()
+    s3_path = f"s3://{BUCKET}/{PREFIX}/"
+    try:
+        objects = wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3_session)
+        return objects
+    except Exception as e:
+        st.error(f"Error listing Parquet files: {str(e)}")
+        return []
 
 # Function to load historical data
 @st.cache_data(ttl=3600, show_spinner=True)
 def load_historical_data():
     boto3_session = boto3.Session()
-    s3_path = f"s3://{BUCKET}/{PREFIX}/properties/"
-    try:
-        df = wr.s3.read_parquet(path=s3_path, boto3_session=boto3_session)
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
+    parquet_files = list_parquet_files()
+    
+    all_data = []
+    for file in parquet_files:
+        try:
+            df = wr.s3.read_parquet(path=file, boto3_session=boto3_session)
+            all_data.append(df)
+        except Exception as e:
+            st.warning(f"Error reading file {file}: {str(e)}")
+    
+    if all_data:
+        return pd.concat(all_data, ignore_index=True)
+    else:
+        st.error("No data could be loaded.")
         return None
 
 # Main app layout
@@ -70,18 +62,17 @@ with histDataTab:
     st.header("Historical Data")
 
     # Load historical data
-    historical_data = load_historical_data()
+    if st.button("Load Historical Data"):
+        historical_data = load_historical_data()
 
-    if historical_data is not None:
-        # Property filter
-        properties = historical_data['property_name'].unique()
-        selected_property = st.selectbox("Select Property", properties)
+        if historical_data is not None:
+            # Property filter
+            properties = historical_data['property_name'].unique()
+            selected_property = st.selectbox("Select Property", properties)
 
-        # Filter data based on selected property
-        property_data = historical_data[historical_data['property_name'] == selected_property]
+            # Filter data based on selected property
+            property_data = historical_data[historical_data['property_name'] == selected_property]
 
-        # Button to trigger data display
-        if st.button("Show Historical Data"):
             # Display price changes
             st.subheader("Price Changes")
             price_changes = property_data.groupby('unit_number').agg({
