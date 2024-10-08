@@ -190,5 +190,6 @@ with aboutTab:
         ## Upcoming features
         - Price drop notifications
         - Advanced filtering options
+        - "New units added" section
         """
     )
