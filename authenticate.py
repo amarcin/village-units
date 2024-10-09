@@ -158,45 +158,29 @@ def pad_base64(data):
     return data
 
 
-def get_user_cognito_groups(id_token):
-    """
-    Decode id token to get user cognito groups.
-
-    Args:
-        id_token: id token of a successfully authenticated user.
-
-    Returns:
-        user_cognito_groups: a list of all the cognito groups the user belongs to.
-    """
-    if id_token != "":
-        header, payload, signature = id_token.split(".")
-        printable_payload = base64.urlsafe_b64decode(pad_base64(payload))
-        payload_dict = json.loads(printable_payload)
-        user_cognito_groups = list(dict(payload_dict)["cognito:groups"])
-    else:
-        user_cognito_groups = []
-    return user_cognito_groups
-
-
 # -----------------------------
 # Set Streamlit state variables
 # -----------------------------
 def set_st_state_vars():
     """
     Sets the streamlit state variables after user authentication.
-    Returns:
-        Nothing.
     """
-    initialise_st_state_vars()
-    auth_code = get_auth_code()
-    access_token, id_token = get_user_tokens(auth_code)
-    user_cognito_groups = get_user_cognito_groups(id_token)
+    try:
+        initialise_st_state_vars()
+        auth_code = get_auth_code()
+        access_token, id_token = get_user_tokens(auth_code)
 
-    if access_token != "":
-        st.session_state["auth_code"] = auth_code
-        st.session_state["authenticated"] = True
-        st.session_state["user_cognito_groups"] = user_cognito_groups
-
+        if access_token and id_token:
+            st.session_state["auth_code"] = auth_code
+            st.session_state["authenticated"] = True
+            # Optionally, get and store user info
+            # user_info = get_user_info(access_token)
+            # st.session_state["user_info"] = user_info
+        else:
+            st.session_state["authenticated"] = False
+    except Exception as e:
+        st.error(f"An error occurred during authentication: {str(e)}")
+        st.session_state["authenticated"] = False
 
 # -----------------------------
 # Login/ Logout HTML components
@@ -204,51 +188,19 @@ def set_st_state_vars():
 login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
 logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
 
-html_css_login = """
-<style>
-.button-login {
-  background-color: skyblue;
-  color: white !important;
-  padding: 1em 1.5em;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.button-login:hover {
-  background-color: #555;
-  text-decoration: none;
-}
-
-.button-login:active {
-  background-color: black;
-}
-
-</style>
-"""
-
-html_button_login = (
-    html_css_login
-    + f"<a href='{login_link}' class='button-login' target='_self'>Log In</a>"
-)
-html_button_logout = (
-    html_css_login
-    + f"<a href='{logout_link}' class='button-login' target='_self'>Log Out</a>"
-)
-
 
 def button_login():
     """
-
     Returns:
-        Html of the login button.
+        A Streamlit button for login.
     """
-    return st.sidebar.markdown(f"{html_button_login}", unsafe_allow_html=True)
-
+    if st.sidebar.button("Log In"):
+        st.switch_page(login_link)
 
 def button_logout():
     """
-
     Returns:
-        Html of the logout button.
+        A Streamlit button for logout.
     """
-    return st.sidebar.markdown(f"{html_button_logout}", unsafe_allow_html=True)
+    if st.sidebar.button("Log Out"):
+        st.switch_page(logout_link)
