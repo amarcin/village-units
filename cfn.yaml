@@ -1,4 +1,3 @@
-Parameters:
-Conditions:
 Resources:
-Outputs:
+  NullResource:
+    Type: AWS::CloudFormation::WaitConditionHandle
