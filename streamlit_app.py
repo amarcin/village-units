@@ -6,7 +6,7 @@ import streamlit as st
 import plotly.express as px
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from .authenticate import (
+from authenticate import (
     set_st_state_vars,
     button_login,
     button_logout,
