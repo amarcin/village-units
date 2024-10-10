@@ -5,6 +5,8 @@ import requests
 import base64
 import json
 
+# Module implemented from blog: https://datagraphi.com/blog/post/2022/9/24/user-authentication-and-page-wise-authorization-in-a-streamlit-multi-page-app-using-aws-cognito
+
 # ------------------------------------
 # Read constants from environment file
 # ------------------------------------
@@ -195,7 +197,7 @@ def button_login():
         A Streamlit button for login.
     """
     if st.sidebar.button("Log In"):
-        st.switch_page(login_link)
+        st.page_link(login_link)
 
 def button_logout():
     """
@@ -203,4 +205,4 @@ def button_logout():
         A Streamlit button for logout.
     """
     if st.sidebar.button("Log Out"):
-        st.switch_page(logout_link)
+        st.page_link(logout_link)
