@@ -195,8 +195,7 @@ def button_login():
     Returns:
         A Streamlit button for login.
     """
-    if st.button("Log In"):
-        st.page_link(page=login_link, label="Log In")
+    st.page_link(page=login_link, label="Log In")
 
 def button_logout():
     """
