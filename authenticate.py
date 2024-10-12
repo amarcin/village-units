@@ -195,11 +195,11 @@ def button_login():
     Returns:
         A Streamlit button for login.
     """
-    st.page_link(page=login_link, label="Log In", icon="⬅️")
+    st.page_link(page=login_link, label="Log In", icon="🔗")
 
 def button_logout():
     """
     Returns:
         A Streamlit button for logout.
     """
-    st.page_link(page=logout_link, label="Log Out", icon="⬅️")
+    st.page_link(page=logout_link, label="Log Out", icon="🔗")
