@@ -14,6 +14,14 @@ from authenticate import (
     initialise_st_state_vars,
 )
 
+# Set page config
+st.set_page_config(
+    page_title="Village Unit Analysis",
+    page_icon=":bar_chart:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 # Initialize session
 initialise_st_state_vars()
 set_st_state_vars()
@@ -30,7 +38,6 @@ PREFIX = "lambda-fetch"
 
 if st.session_state["authenticated"]:
     # Your existing app code goes here
-    st.set_page_config(layout="wide")
     st.title("Village Unit Analysis")
     
     # Function to fetch data from the API with caching
