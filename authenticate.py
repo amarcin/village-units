@@ -4,26 +4,23 @@ from dotenv import load_dotenv
 import requests
 import base64
 
-# Load environment variables
 load_dotenv()
 COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 APP_URI = os.getenv("APP_URI")
 
-# Streamlit state initialization
-def init_session_state():
+def initialize_session_state():
     for key in ["auth_code", "authenticated", "user_cognito_groups"]:
         if key not in st.session_state:
-            st.session_state[key] = "" if key == "auth_code" else False if key == "authenticated" else []
+            st.session_state[key] = "" if key == "auth_code" else ([] if key == "user_cognito_groups" else False)
 
-# Authentication functions
 def get_auth_code():
     return st.query_params.get("code", [""])[0]
 
 def get_user_tokens(auth_code):
     token_url = f"{COGNITO_DOMAIN}/oauth2/token"
-    client_secret_encoded = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode()
+    client_secret_encoded = base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode("utf-8")).decode("utf-8")
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": f"Basic {client_secret_encoded}",
@@ -40,13 +37,12 @@ def get_user_tokens(auth_code):
 def get_user_info(access_token):
     userinfo_url = f"{COGNITO_DOMAIN}/oauth2/userInfo"
     headers = {
-        "Content-Type": "application/json;charset=UTF-8",
         "Authorization": f"Bearer {access_token}",
     }
     return requests.get(userinfo_url, headers=headers).json()
 
 def set_auth_state():
-    init_session_state()
+    initialize_session_state()
     auth_code = get_auth_code()
     if auth_code:
         access_token, id_token = get_user_tokens(auth_code)
@@ -62,12 +58,11 @@ def set_auth_state():
     else:
         st.session_state["authenticated"] = False
 
-# Login/Logout components
 login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
 logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
 
 def button_login():
-    return st.page_link(login_link, label="Log In", icon="🔗")
+    st.page_link(login_link, label="Log In", icon="🔗")
 
 def button_logout():
-    return st.page_link(logout_link, label="Log Out", icon="🔗")
+    st.page_link(logout_link, label="Log Out", icon="🔗")
