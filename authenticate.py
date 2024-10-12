@@ -190,19 +190,18 @@ def set_st_state_vars():
 login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
 logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
 
-
 def button_login():
     """
     Returns:
         A Streamlit button for login.
     """
-    if st.sidebar.button("Log In"):
-        st.page_link(login_link)
+    if st.button("Log In"):
+        st.page_link(login_link, "Log In")
 
 def button_logout():
     """
     Returns:
         A Streamlit button for logout.
     """
-    if st.sidebar.button("Log Out"):
-        st.page_link(logout_link)
+    if st.button("Log Out"):
+        st.page_link(logout_link, "Log Out")
