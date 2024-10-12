@@ -18,11 +18,10 @@ from authenticate import (
 st.set_page_config(
     page_title="Village Unit Analysis",
     page_icon=":bar_chart:",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# Initialize session
+# Initialize the session
 initialise_st_state_vars()
 set_st_state_vars()
 

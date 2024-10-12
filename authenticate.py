@@ -21,12 +21,6 @@ APP_URI = os.environ.get("APP_URI")
 # Initialise Streamlit state variables
 # ------------------------------------
 def initialise_st_state_vars():
-    """
-    Initialise Streamlit state variables.
-
-    Returns:
-        Nothing.
-    """
     if "auth_code" not in st.session_state:
         st.session_state["auth_code"] = ""
     if "authenticated" not in st.session_state:
@@ -185,7 +179,7 @@ def set_st_state_vars():
         st.session_state["authenticated"] = False
 
 # -----------------------------
-# Login/ Logout HTML components
+# Login/ Logout components
 # -----------------------------
 login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
 logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
