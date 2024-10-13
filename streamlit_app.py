@@ -15,12 +15,6 @@ logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="wide")
 
-# Initialize session state
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-
-set_auth_session()
-
 API_URL = os.environ.get("API_URL")
 BUCKET = os.environ.get("BUCKET")
 PREFIX = os.environ.get("PREFIX")
@@ -121,11 +115,13 @@ def display_historical_data(historical_data):
     st.plotly_chart(fig_unit)
 
 def main():
+    set_auth_session()
+
     if not st.session_state.authenticated:
         st.warning("Please log in to access the application.")
         return
 
-    if 'aws_credentials' not in st.session_state:
+    if 'aws_credentials' not in st.session_state or not st.session_state.aws_credentials:
         st.error("AWS credentials not available. Please log in again.")
         return
 

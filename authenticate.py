@@ -23,9 +23,18 @@ AWS_REGION = os.getenv("AWS_REGION")
 
 def initialize_session_state():
     """Initialize Streamlit session state variables."""
-    for key in ["auth_code", "authenticated", "user_cognito_groups", "aws_credentials"]:
-        if key not in st.session_state:
-            st.session_state[key] = "" if key == "auth_code" else False if key == "authenticated" else [] if key == "user_cognito_groups" else None
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    if "auth_code" not in st.session_state:
+        st.session_state.auth_code = ""
+    if "access_token" not in st.session_state:
+        st.session_state.access_token = ""
+    if "id_token" not in st.session_state:
+        st.session_state.id_token = ""
+    if "user_cognito_groups" not in st.session_state:
+        st.session_state.user_cognito_groups = []
+    if "aws_credentials" not in st.session_state:
+        st.session_state.aws_credentials = None
     logger.info("Session state initialized")
 
 def get_auth_code():
@@ -112,34 +121,42 @@ def get_aws_credentials(id_token):
 def set_auth_session():
     """Set authentication session state."""
     initialize_session_state()
-    auth_code = get_auth_code()
     
-    if auth_code:
-        logger.info("Auth code received, attempting to get tokens")
-        access_token, id_token = get_user_tokens(auth_code)
+    if not st.session_state.authenticated:
+        auth_code = get_auth_code()
         
-        if access_token and id_token:
-            logger.info("Tokens received, setting session state")
-            st.session_state.auth_code = auth_code
-            st.session_state.authenticated = True
-            user_info = get_user_info(access_token)
-            st.session_state.user_info = user_info
+        if auth_code and auth_code != st.session_state.auth_code:
+            logger.info("New auth code received, attempting to get tokens")
+            access_token, id_token = get_user_tokens(auth_code)
             
-            # Get AWS credentials
-            aws_credentials = get_aws_credentials(id_token)
-            if aws_credentials:
-                st.session_state.aws_credentials = aws_credentials
-                logger.info("AWS credentials obtained successfully")
+            if access_token and id_token:
+                logger.info("Tokens received, setting session state")
+                st.session_state.auth_code = auth_code
+                st.session_state.access_token = access_token
+                st.session_state.id_token = id_token
+                st.session_state.authenticated = True
+                user_info = get_user_info(access_token)
+                st.session_state.user_info = user_info
+                
+                # Get AWS credentials
+                aws_credentials = get_aws_credentials(id_token)
+                if aws_credentials:
+                    st.session_state.aws_credentials = aws_credentials
+                    logger.info("AWS credentials obtained successfully")
+                else:
+                    logger.warning("Failed to obtain AWS credentials")
+                
+                logger.info("Authentication successful")
+                st.rerun()
             else:
-                logger.warning("Failed to obtain AWS credentials")
-            
-            logger.info("Authentication successful")
+                logger.warning("Failed to get tokens")
+                st.session_state.authenticated = False
+        elif st.session_state.access_token and st.session_state.id_token:
+            logger.info("Using existing tokens")
+            st.session_state.authenticated = True
         else:
-            logger.warning("Failed to get tokens")
+            logger.info("No valid auth code or tokens present")
             st.session_state.authenticated = False
-    else:
-        logger.info("No auth code present")
-        st.session_state.authenticated = False
 
 def login_button():
     """Create login button."""
