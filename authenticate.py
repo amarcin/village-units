@@ -7,6 +7,7 @@ import logging
 import boto3
 import botocore
 from datetime import datetime, timedelta
+import pytz
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -106,7 +107,7 @@ def get_aws_credentials(id_token):
             'AccessKeyId': credentials['AccessKeyId'],
             'SecretKey': credentials['SecretKey'],
             'SessionToken': credentials['SessionToken'],
-            'Expiration': credentials['Expiration']
+            'Expiration': credentials['Expiration'].replace(tzinfo=pytz.UTC)
         }
     except botocore.exceptions.ClientError as e:
         logger.error(f"Error getting AWS credentials: {e}")
@@ -118,7 +119,8 @@ def set_auth_session():
     
     # Check if already authenticated and credentials are still valid
     if st.session_state.auth_state["authenticated"] and st.session_state.auth_state["credentials_expiration"]:
-        if datetime.now() < st.session_state.auth_state["credentials_expiration"]:
+        now = datetime.now(pytz.UTC)
+        if now < st.session_state.auth_state["credentials_expiration"]:
             logger.info("Using cached authentication")
             return
 
