@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 from authenticate import set_auth_session, login_button, logout_button
 import logging
 import os
+from datetime import datetime, timedelta
+import pytz
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -102,8 +104,16 @@ def display_historical_data(historical_data):
     time_periods = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "Max": None}
     selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
 
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
+    # Ensure end_date is timezone-aware
+    end_date = datetime.now(pytz.UTC)
+    if time_periods[selected_period]:
+        start_date = end_date - timedelta(days=time_periods[selected_period])
+    else:
+        start_date = property_data['fetch_datetime'].min().replace(tzinfo=pytz.UTC)
+
+    # Ensure property_data['fetch_datetime'] is timezone-aware
+    if property_data['fetch_datetime'].dt.tz is None:
+        property_data['fetch_datetime'] = property_data['fetch_datetime'].dt.tz_localize(pytz.UTC)
 
     filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
 
@@ -116,7 +126,7 @@ def display_historical_data(historical_data):
 
     fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
     st.plotly_chart(fig_unit)
-    
+
 def main():
     if not st.session_state.auth_state["authenticated"]:
         st.warning("Please log in to access the application.")
