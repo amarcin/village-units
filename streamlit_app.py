@@ -10,39 +10,25 @@ from authenticate import set_auth_session, login_button, logout_button
 import logging
 import os
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set page config
-st.set_page_config(
-    page_title="Village Data",
-    page_icon=":bar_chart:",
-    layout="wide"
-)
+st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="wide")
 
-# Initialize the session
 set_auth_session()
 
-def title():
-    title, authButton = st.columns([6, 1])
-    with title:
-        st.title("Village Data")
-    with authButton:
-        if st.session_state.authenticated:
-            logout_button()
-        else:
-            login_button()
-
-# Define constants
 API_URL = os.environ.get("API_URL")
 BUCKET = os.environ.get("BUCKET")
 PREFIX = os.environ.get("PREFIX")
 AWS_REGION = os.environ.get("AWS_REGION")
 
+def title():
+    col1, col2 = st.columns([6, 1])
+    col1.title("Village Data")
+    col2.write(logout_button() if st.session_state.authenticated else login_button())
+
 @st.cache_data(show_spinner=True, ttl=21600)
 def fetch_units():
-    """Fetch units data from API."""
     session = requests.Session()
     page = 1
     unit_array = []
@@ -51,8 +37,7 @@ def fetch_units():
         try:
             r = session.get(API_URL, params={"page": page})
             r.raise_for_status()
-            data = r.json()
-            units = data.get("units", [])
+            units = r.json().get("units", [])
             if not units:
                 break
             unit_array.extend([
@@ -76,120 +61,81 @@ def fetch_units():
 
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
-def list_parquet_files(_boto3_session):
-    """List all Parquet files in S3 bucket."""
-    s3_path = f"s3://{BUCKET}/{PREFIX}/"
-    try:
-        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=_boto3_session)
-    except Exception as e:
-        logger.error(f"Error listing Parquet files: {e}")
-        raise
-
 @st.cache_data(ttl=3600, show_spinner=True)
 def load_historical_data(_boto3_session):
-    """Load historical data from S3."""
+    s3_path = f"s3://{BUCKET}/{PREFIX}/"
     try:
-        parquet_files = list_parquet_files(_boto3_session)
-        
-        all_data = []
-        for file in parquet_files:
-            try:
-                df = wr.s3.read_parquet(path=file, boto3_session=_boto3_session)
-                all_data.append(df)
-            except Exception as e:
-                logger.warning(f"Error reading file {file}: {e}")
-        
-        if all_data:
-            combined_data = pd.concat(all_data, ignore_index=True)
-            combined_data['fetch_datetime'] = pd.to_datetime(combined_data['fetch_datetime'])
-            return combined_data
-        else:
-            logger.error("No data could be loaded.")
-            return None
+        parquet_files = wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=_boto3_session)
+        all_data = pd.concat([wr.s3.read_parquet(path=file, boto3_session=_boto3_session) for file in parquet_files], ignore_index=True)
+        all_data['fetch_datetime'] = pd.to_datetime(all_data['fetch_datetime'])
+        return all_data
     except Exception as e:
         logger.error(f"Error loading historical data: {e}")
-        raise
+        return None
 
-def main():    
-    # Create AWS session
-    if st.session_state.authenticated and 'aws_credentials' in st.session_state:
-        credentials = st.session_state.aws_credentials
-        boto3_session = boto3.Session(
-            aws_access_key_id=credentials['AccessKeyId'],
-            aws_secret_access_key=credentials['SecretKey'],
-            aws_session_token=credentials['SessionToken'],
-            region_name=AWS_REGION
-        )
-        logger.info("AWS session created successfully")
-    else:
+def display_historical_data(historical_data):
+    properties = historical_data['property_name'].unique()
+    selected_property = st.selectbox("Select Property", properties)
+    property_data = historical_data[historical_data['property_name'] == selected_property]
+
+    st.subheader("Property Summary")
+    property_summary = property_data.groupby('unit_number').agg({
+        'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
+    })
+    property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
+    st.dataframe(property_summary)
+
+    st.subheader("Price Changes")
+    price_changes = property_data.groupby('unit_number').agg({
+        'rent': ['first', 'last', lambda x: x.diff().sum()]
+    })
+    price_changes.columns = ['Initial Rent', 'Current Rent', 'Total Change']
+    price_changes['Percent Change'] = (price_changes['Total Change'] / price_changes['Initial Rent']) * 100
+    st.dataframe(price_changes)
+
+    st.subheader("Rent History")
+    time_periods = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "Max": None}
+    selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
+    
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
+
+    filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
+    
+    fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
+    st.plotly_chart(fig)
+
+    st.subheader("Specific Unit Price History")
+    selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
+    unit_data = property_data[property_data['unit_number'] == selected_unit]
+    
+    fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
+    st.plotly_chart(fig_unit)
+
+def main():
+    if not st.session_state.authenticated or 'aws_credentials' not in st.session_state:
         st.error("AWS credentials not available. Please log in again.")
         return
-    
-    histDataTab, liveDataTab, aboutTab = st.tabs(
-        ["Historical Data", "Live Data", "About"]
+
+    credentials = st.session_state.aws_credentials
+    boto3_session = boto3.Session(
+        aws_access_key_id=credentials['AccessKeyId'],
+        aws_secret_access_key=credentials['SecretKey'],
+        aws_session_token=credentials['SessionToken'],
+        region_name=AWS_REGION
     )
+    
+    histDataTab, liveDataTab, aboutTab = st.tabs(["Historical Data", "Live Data", "About"])
 
     with histDataTab:
         st.header("Historical Data")
         if 'historical_data' not in st.session_state:
-            st.session_state.historical_data = None
-            
-        if st.session_state.historical_data is None:
-            try:
-                st.session_state.historical_data = load_historical_data(boto3_session)
-                if st.session_state.historical_data is None:
-                    st.warning("No historical data available.")
-                else:
-                    pass
-            except Exception as e:
-                st.error(f"Failed to load historical data: {e}")
-
+            st.session_state.historical_data = load_historical_data(boto3_session)
+        
         if st.session_state.historical_data is not None:
-            properties = st.session_state.historical_data['property_name'].unique()
-            selected_property = st.selectbox("Select Property", properties)
-            property_data = st.session_state.historical_data[st.session_state.historical_data['property_name'] == selected_property]
-
-            st.subheader("Property Summary")
-            property_summary = property_data.groupby('unit_number').agg({
-                'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
-            })
-            property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
-            st.dataframe(property_summary)
-
-            st.subheader("Price Changes")
-            price_changes = property_data.groupby('unit_number').agg({
-                'rent': ['first', 'last', lambda x: x.diff().sum()]
-            })
-            price_changes.columns = ['Initial Rent', 'Current Rent', 'Total Change']
-            price_changes['Percent Change'] = (price_changes['Total Change'] / price_changes['Initial Rent']) * 100
-            st.dataframe(price_changes)
-
-            st.subheader("Rent History")
-            time_periods = {
-                "1 Month": 30,
-                "3 Months": 90,
-                "6 Months": 180,
-                "1 Year": 365,
-                "Max": None
-            }
-            selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
-            
-            end_date = datetime.now()
-            start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
-
-            filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
-            
-            fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
-            st.plotly_chart(fig)
-
-            st.subheader("Specific Unit Price History")
-            selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
-            unit_data = property_data[property_data['unit_number'] == selected_unit]
-            
-            fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
-            st.plotly_chart(fig_unit)
+            display_historical_data(st.session_state.historical_data)
         else:
-            st.warning("No historical data available. Please load the data first.")
+            st.warning("No historical data available.")
 
     with liveDataTab:
         st.header("Today's Rates")
@@ -200,23 +146,19 @@ def main():
                 st.dataframe(
                     df,
                     hide_index=True,
-                    column_config={
-                        "Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View"),
-                    },
+                    column_config={"Floorplan": st.column_config.LinkColumn("Floorplan", display_text="View")},
                 )
                 st.caption(f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}")
             else:
                 st.warning("No data available.")
 
     with aboutTab:
-        st.markdown(
-            """
-            ## Upcoming features
-            - Price drop notifications
-            - Advanced filtering options
-            - "New units added" section
-            """
-        )
+        st.markdown("""
+        ## Upcoming features
+        - Price drop notifications
+        - Advanced filtering options
+        - "New units added" section
+        """)
 
 title()
 
