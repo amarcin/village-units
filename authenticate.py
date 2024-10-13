@@ -3,87 +3,39 @@ import streamlit as st
 from dotenv import load_dotenv
 import requests
 import base64
-import json
+import logging
 
-# Module implemented from blog: https://datagraphi.com/blog/post/2022/9/24/user-authentication-and-page-wise-authorization-in-a-streamlit-multi-page-app-using-aws-cognito
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# ------------------------------------
-# Read constants from environment file
-# ------------------------------------
+# Load environment variables
 load_dotenv()
-COGNITO_DOMAIN = os.environ.get("COGNITO_DOMAIN")
-CLIENT_ID = os.environ.get("CLIENT_ID")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-APP_URI = os.environ.get("APP_URI")
+COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN")
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+APP_URI = os.getenv("APP_URI")
 
+def initialize_session_state():
+    """Initialize Streamlit session state variables."""
+    for key in ["auth_code", "authenticated", "user_cognito_groups"]:
+        if key not in st.session_state:
+            st.session_state[key] = "" if key == "auth_code" else False if key == "authenticated" else []
+    logger.info("Session state initialized")
 
-# ------------------------------------
-# Initialise Streamlit state variables
-# ------------------------------------
-def initialise_st_state_vars():
-    if "auth_code" not in st.session_state:
-        st.session_state["auth_code"] = ""
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-    if "user_cognito_groups" not in st.session_state:
-        st.session_state["user_cognito_groups"] = []
-
-
-# ----------------------------------
-# Get authorization code after login
-# ----------------------------------
 def get_auth_code():
-    """
-    Sets the auth_code state variable.
-    """
-    auth_query_params = st.query_params
+    """Get authorization code from query parameters."""
     try:
-        auth_code = auth_query_params.get("code", [""])[0]
-    except (KeyError, TypeError):
-        auth_code = ""
+        return st.query_params.get("code", "")
+    except Exception as e:
+        logger.error(f"Error getting auth code: {e}")
+        return ""
 
-    return auth_code
-
-
-# ----------------------------------
-# Set authorization code after login
-# ----------------------------------
-def set_auth_code():
-    """
-    Sets auth_code state variable.
-
-    Returns:
-        Nothing.
-    """
-    initialise_st_state_vars()
-    auth_code = get_auth_code()
-    st.session_state["auth_code"] = auth_code
-
-
-# -------------------------------------------------------
-# Use authorization code to get user access and id tokens
-# -------------------------------------------------------
 def get_user_tokens(auth_code):
-    """
-    Gets user tokens by making a post request call.
-
-    Args:
-        auth_code: Authorization code from cognito server.
-
-    Returns:
-        {
-        'access_token': access token from cognito server if user is successfully authenticated.
-        'id_token': access token from cognito server if user is successfully authenticated.
-        }
-
-    """
-
-    # Variables to make a post request
+    """Get user tokens from Cognito server."""
     token_url = f"{COGNITO_DOMAIN}/oauth2/token"
     client_secret_string = f"{CLIENT_ID}:{CLIENT_SECRET}"
-    client_secret_encoded = str(
-        base64.b64encode(client_secret_string.encode("utf-8")), "utf-8"
-    )
+    client_secret_encoded = base64.b64encode(client_secret_string.encode("utf-8")).decode("utf-8")
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": f"Basic {client_secret_encoded}",
@@ -95,102 +47,59 @@ def get_user_tokens(auth_code):
         "redirect_uri": APP_URI,
     }
 
-    token_response = requests.post(token_url, headers=headers, data=body)
     try:
-        access_token = token_response.json()["access_token"]
-        id_token = token_response.json()["id_token"]
-    except (KeyError, TypeError):
-        access_token = ""
-        id_token = ""
+        response = requests.post(token_url, headers=headers, data=body)
+        response.raise_for_status()
+        tokens = response.json()
+        return tokens.get("access_token"), tokens.get("id_token")
+    except requests.RequestException as e:
+        logger.error(f"Error getting user tokens: {e}")
+        return "", ""
 
-    return access_token, id_token
-
-
-# ---------------------------------------------
-# Use access token to retrieve user information
-# ---------------------------------------------
 def get_user_info(access_token):
-    """
-    Gets user info from aws cognito server.
-
-    Args:
-        access_token: string access token from the aws cognito user pool
-        retrieved using the access code.
-
-    Returns:
-        userinfo_response: json object.
-    """
+    """Get user info from Cognito server."""
     userinfo_url = f"{COGNITO_DOMAIN}/oauth2/userInfo"
     headers = {
-        "Content-Type": "application/json;charset=UTF-8",
         "Authorization": f"Bearer {access_token}",
     }
 
-    userinfo_response = requests.get(userinfo_url, headers=headers)
-
-    return userinfo_response.json()
-
-
-# -------------------------------------------------------
-# Decode access token to JWT to get user's cognito groups
-# -------------------------------------------------------
-# Ref - https://gist.github.com/GuillaumeDerval/b300af6d4f906f38a051351afab3b95c
-def pad_base64(data):
-    """
-    Makes sure base64 data is padded.
-
-    Args:
-        data: base64 token string.
-
-    Returns:
-        data: padded token string.
-    """
-    missing_padding = len(data) % 4
-    if missing_padding != 0:
-        data += "=" * (4 - missing_padding)
-    return data
-
-
-# -----------------------------
-# Set Streamlit state variables
-# -----------------------------
-def set_st_state_vars():
-    """
-    Sets the streamlit state variables after user authentication.
-    """
     try:
-        initialise_st_state_vars()
-        auth_code = get_auth_code()
+        response = requests.get(userinfo_url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Error getting user info: {e}")
+        return {}
+
+def set_auth_session():
+    """Set authentication session state."""
+    initialize_session_state()
+    auth_code = get_auth_code()
+    
+    if auth_code:
+        logger.info("Auth code received, attempting to get tokens")
         access_token, id_token = get_user_tokens(auth_code)
-
+        
         if access_token and id_token:
-            st.session_state["auth_code"] = auth_code
-            st.session_state["authenticated"] = True
-            # Optionally, get and store user info
-            # user_info = get_user_info(access_token)
-            # st.session_state["user_info"] = user_info
+            logger.info("Tokens received, setting session state")
+            st.session_state.auth_code = auth_code
+            st.session_state.authenticated = True
+            user_info = get_user_info(access_token)
+            st.session_state.user_info = user_info
+            logger.info("Authentication successful")
         else:
-            st.session_state["authenticated"] = False
-    except Exception as e:
-        st.error(f"An error occurred during authentication: {str(e)}")
-        st.session_state["authenticated"] = False
+            logger.warning("Failed to get tokens")
+            st.session_state.authenticated = False
+    else:
+        logger.info("No auth code present")
+        st.session_state.authenticated = False
 
-# -----------------------------
-# Login/ Logout components
-# -----------------------------
-login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
-logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
+def login_button():
+    """Create login button."""
+    login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
+    return st.page_link(page=login_link, label="Log In", icon="🔑")
 
-def button_login():
-    """
-    Returns:
-        A Streamlit button for login.
-    """
-    st.page_link(page=login_link, label="Log In", icon="🔗")
-
-def button_logout():
-    """
-    Returns:
-        A Streamlit button for logout.
-    """
-    st.page_link(page=logout_link, label="Log Out", icon="🔗")
+def logout_button():
+    """Create logout button."""
+    logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
+    return st.page_link(page=logout_link, label="Log Out", icon="🚪")
