@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="wide")
 
+set_auth_session()
+
 API_URL = os.environ.get("API_URL")
 BUCKET = os.environ.get("BUCKET")
 PREFIX = os.environ.get("PREFIX")
@@ -24,10 +26,11 @@ def title():
     col1, col2 = st.columns([6, 1])
     col1.title("Village Data")
     with col2:
-        if st.session_state.authenticated:
+        if st.session_state.auth_state["authenticated"]:
             logout_button()
         else:
             login_button()
+
 
 @st.cache_data(show_spinner=True, ttl=21600)
 def fetch_units():
@@ -98,34 +101,32 @@ def display_historical_data(historical_data):
     st.subheader("Rent History")
     time_periods = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "Max": None}
     selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
-  
+
     end_date = datetime.now()
     start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
 
     filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
-  
+
     fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
     st.plotly_chart(fig)
 
     st.subheader("Specific Unit Price History")
     selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
     unit_data = property_data[property_data['unit_number'] == selected_unit]
-  
+
     fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
     st.plotly_chart(fig_unit)
-
+    
 def main():
-    set_auth_session()
-
-    if not st.session_state.authenticated:
+    if not st.session_state.auth_state["authenticated"]:
         st.warning("Please log in to access the application.")
         return
 
-    if 'aws_credentials' not in st.session_state or not st.session_state.aws_credentials:
+    credentials = st.session_state.auth_state["aws_credentials"]
+    if not credentials:
         st.error("AWS credentials not available. Please log in again.")
         return
 
-    credentials = st.session_state.aws_credentials
     boto3_session = boto3.Session(
         aws_access_key_id=credentials['AccessKeyId'],
         aws_secret_access_key=credentials['SecretKey'],

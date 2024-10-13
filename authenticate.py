@@ -6,6 +6,7 @@ import base64
 import logging
 import boto3
 import botocore
+from datetime import datetime, timedelta
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,18 +24,13 @@ AWS_REGION = os.getenv("AWS_REGION")
 
 def initialize_session_state():
     """Initialize Streamlit session state variables."""
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if "auth_code" not in st.session_state:
-        st.session_state.auth_code = ""
-    if "access_token" not in st.session_state:
-        st.session_state.access_token = ""
-    if "id_token" not in st.session_state:
-        st.session_state.id_token = ""
-    if "user_cognito_groups" not in st.session_state:
-        st.session_state.user_cognito_groups = []
-    if "aws_credentials" not in st.session_state:
-        st.session_state.aws_credentials = None
+    if "auth_state" not in st.session_state:
+        st.session_state.auth_state = {
+            "authenticated": False,
+            "user_cognito_groups": [],
+            "aws_credentials": None,
+            "credentials_expiration": None
+        }
     logger.info("Session state initialized")
 
 def get_auth_code():
@@ -88,9 +84,8 @@ def get_user_info(access_token):
 def get_aws_credentials(id_token):
     """Get AWS credentials using Cognito Identity Pool."""
     client = boto3.client('cognito-identity', region_name=AWS_REGION)
-    
+  
     try:
-        # Get ID from Cognito Identity Pool
         response = client.get_id(
             IdentityPoolId=COGNITO_IDENTITY_POOL_ID,
             Logins={
@@ -98,15 +93,14 @@ def get_aws_credentials(id_token):
             }
         )
         identity_id = response['IdentityId']
-        
-        # Get credentials for the identity
+      
         response = client.get_credentials_for_identity(
             IdentityId=identity_id,
             Logins={
                 f'cognito-idp.{AWS_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}': id_token
             }
         )
-        
+      
         credentials = response['Credentials']
         return {
             'AccessKeyId': credentials['AccessKeyId'],
@@ -122,41 +116,42 @@ def set_auth_session():
     """Set authentication session state."""
     initialize_session_state()
     
-    if not st.session_state.authenticated:
-        auth_code = get_auth_code()
-        
-        if auth_code and auth_code != st.session_state.auth_code:
-            logger.info("New auth code received, attempting to get tokens")
-            access_token, id_token = get_user_tokens(auth_code)
-            
-            if access_token and id_token:
-                logger.info("Tokens received, setting session state")
-                st.session_state.auth_code = auth_code
-                st.session_state.access_token = access_token
-                st.session_state.id_token = id_token
-                st.session_state.authenticated = True
-                user_info = get_user_info(access_token)
-                st.session_state.user_info = user_info
-                
-                # Get AWS credentials
-                aws_credentials = get_aws_credentials(id_token)
-                if aws_credentials:
-                    st.session_state.aws_credentials = aws_credentials
-                    logger.info("AWS credentials obtained successfully")
-                else:
-                    logger.warning("Failed to obtain AWS credentials")
-                
+    # Check if already authenticated and credentials are still valid
+    if st.session_state.auth_state["authenticated"] and st.session_state.auth_state["credentials_expiration"]:
+        if datetime.now() < st.session_state.auth_state["credentials_expiration"]:
+            logger.info("Using cached authentication")
+            return
+
+    auth_code = get_auth_code()
+  
+    if auth_code:
+        logger.info("Auth code received, attempting to get tokens")
+        access_token, id_token = get_user_tokens(auth_code)
+      
+        if access_token and id_token:
+            logger.info("Tokens received, setting session state")
+            user_info = get_user_info(access_token)
+          
+            # Get AWS credentials
+            aws_credentials = get_aws_credentials(id_token)
+            if aws_credentials:
+                st.session_state.auth_state["authenticated"] = True
+                st.session_state.auth_state["user_info"] = user_info
+                st.session_state.auth_state["aws_credentials"] = aws_credentials
+                st.session_state.auth_state["credentials_expiration"] = aws_credentials['Expiration']
                 logger.info("Authentication successful")
-                st.rerun()
             else:
-                logger.warning("Failed to get tokens")
-                st.session_state.authenticated = False
-        elif st.session_state.access_token and st.session_state.id_token:
-            logger.info("Using existing tokens")
-            st.session_state.authenticated = True
+                logger.warning("Failed to obtain AWS credentials")
+                st.session_state.auth_state["authenticated"] = False
         else:
-            logger.info("No valid auth code or tokens present")
-            st.session_state.authenticated = False
+            logger.warning("Failed to get tokens")
+            st.session_state.auth_state["authenticated"] = False
+    else:
+        logger.info("No auth code present")
+        st.session_state.auth_state["authenticated"] = False
+
+    # Clear the code from query params to avoid reprocessing
+    st.query_params.clear()
 
 def login_button():
     """Create login button."""
@@ -166,4 +161,11 @@ def login_button():
 def logout_button():
     """Create logout button."""
     logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
-    st.page_link(page=logout_link, label="Log Out", icon="🚪")
+    if st.button("Log Out", key="logout_button"):
+        st.session_state.auth_state = {
+            "authenticated": False,
+            "user_cognito_groups": [],
+            "aws_credentials": None,
+            "credentials_expiration": None
+        }
+        st.rerun()
