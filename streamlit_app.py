@@ -32,7 +32,6 @@ def title():
         if st.session_state.authenticated:
             logout_button()
         else:
-            st.info("Please log in to access the application.")
             login_button()
 
 # Define constants
@@ -228,5 +227,4 @@ title()
 if st.session_state.authenticated:
     main()
 else:
-    # Do nothing if not authenticated
-    pass
+    st.info("Please log in to access the application.")
