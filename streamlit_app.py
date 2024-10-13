@@ -101,8 +101,8 @@ def main():
     """Main application logic."""
     st.title("Village Unit Analysis")
     
-    histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
-        ["Historical Data", "Live Data", "Tracker", "About"]
+    histDataTab, liveDataTab = st.tabs(
+        ["Historical Data", "Live Data",]
     )
 
     with histDataTab:
@@ -169,27 +169,6 @@ def main():
                 st.caption(f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}")
             else:
                 st.warning("No data available.")
-
-    with aboutTab:
-        st.markdown(
-            """
-            This app allows you to view and analyze unit data from the Village Dallas API. 
-            The data is fetched from the API and stored in a DataFrame for easy manipulation and display. 
-            The app is built using Streamlit, a popular Python library for creating data apps.
-
-            ## Features
-            - Historical data analysis
-            - Live data fetching
-            - Price change tracking
-            - Rent history visualization
-            - Specific unit price history
-
-            ## Upcoming features
-            - Price drop notifications
-            - Advanced filtering options
-            - "New units added" section
-            """
-        )
 
 if st.session_state.authenticated:
     main()

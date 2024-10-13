@@ -95,11 +95,9 @@ def set_auth_session():
         st.session_state.authenticated = False
 
 def login_button():
-    """Create login button."""
     login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
     return st.page_link(page=login_link, label="Log In", icon="🔑")
 
 def logout_button():
-    """Create logout button."""
     logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
     return st.page_link(page=logout_link, label="Log Out", icon="🚪")
