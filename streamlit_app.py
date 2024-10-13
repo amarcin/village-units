@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Set page config
 st.set_page_config(
-    page_title="Village Unit Analysis",
+    page_title="Village Data",
     page_icon=":bar_chart:",
     layout="wide"
 )
@@ -107,7 +107,14 @@ def load_historical_data(_boto3_session):
 
 def main():
     """Main application logic."""
-    st.title("Village Unit Analysis")
+    title, authButton = st.columns([6, 1])
+    with title:
+        st.title("Village Data")
+    with authButton:
+        if st.session_state.authenticated:
+            logout_button()
+        else:
+            login_button()
     
     # Create AWS session
     if st.session_state.authenticated and 'aws_credentials' in st.session_state:
