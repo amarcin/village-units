@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from authenticate import set_auth_session, login_button, logout_button
 import logging
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
