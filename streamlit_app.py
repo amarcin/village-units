@@ -27,6 +27,7 @@ else:
 URL = "https://api.thevillagedallas.com/units/search"
 BUCKET = "am-apartment-data"
 PREFIX = "lambda-fetch"
+AWS_REGION = "us-east-1"  # Replace with your AWS region
 
 @st.cache_data(show_spinner=True, ttl=21600)
 def fetch_units():
@@ -65,26 +66,24 @@ def fetch_units():
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def list_parquet_files():
+def list_parquet_files(s3_client):
     """List all Parquet files in S3 bucket."""
-    boto3_session = boto3.Session()
     s3_path = f"s3://{BUCKET}/{PREFIX}/"
     try:
-        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3_session)
+        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=s3_client)
     except Exception as e:
         st.error(f"Error listing Parquet files: {e}")
         return []
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_historical_data():
+def load_historical_data(s3_client):
     """Load historical data from S3."""
-    boto3_session = boto3.Session()
-    parquet_files = list_parquet_files()
+    parquet_files = list_parquet_files(s3_client)
     
     all_data = []
     for file in parquet_files:
         try:
-            df = wr.s3.read_parquet(path=file, boto3_session=boto3_session)
+            df = wr.s3.read_parquet(path=file, boto3_session=s3_client)
             all_data.append(df)
         except Exception as e:
             st.warning(f"Error reading file {file}: {e}")
@@ -101,8 +100,22 @@ def main():
     """Main application logic."""
     st.title("Village Unit Analysis")
     
-    histDataTab, liveDataTab = st.tabs(
-        ["Historical Data", "Live Data",]
+    # Create AWS session using temporary credentials
+    if st.session_state.authenticated and 'aws_credentials' in st.session_state:
+        credentials = st.session_state.aws_credentials
+        aws_session = boto3.Session(
+            aws_access_key_id=credentials['AccessKeyId'],
+            aws_secret_access_key=credentials['SecretKey'],
+            aws_session_token=credentials['SessionToken'],
+            region_name=AWS_REGION
+        )
+        s3_client = aws_session.client('s3')
+    else:
+        st.warning("AWS credentials not available. Some features may be limited.")
+        s3_client = None
+    
+    histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
+        ["Historical Data", "Live Data", "Tracker", "About"]
     )
 
     with histDataTab:
@@ -111,7 +124,10 @@ def main():
             st.session_state.historical_data = None
 
         if st.button("Load Historical Data") or st.session_state.historical_data is None:
-            st.session_state.historical_data = load_historical_data()
+            if s3_client:
+                st.session_state.historical_data = load_historical_data(s3_client)
+            else:
+                st.error("Cannot load historical data without AWS credentials.")
 
         if st.session_state.historical_data is not None:
             properties = st.session_state.historical_data['property_name'].unique()

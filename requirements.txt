@@ -3,3 +3,4 @@ requests
 awswrangler
 plotly
 python-dotenv
+warrant

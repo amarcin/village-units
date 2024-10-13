@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import requests
 import base64
 import logging
+import boto3
+from warrant.aws_srp import AWSSRP
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -15,12 +17,15 @@ COGNITO_DOMAIN = os.getenv("COGNITO_DOMAIN")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 APP_URI = os.getenv("APP_URI")
+COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID")
+COGNITO_IDENTITY_POOL_ID = os.getenv("COGNITO_IDENTITY_POOL_ID")
+AWS_REGION = os.getenv("AWS_REGION")
 
 def initialize_session_state():
     """Initialize Streamlit session state variables."""
-    for key in ["auth_code", "authenticated", "user_cognito_groups"]:
+    for key in ["auth_code", "authenticated", "user_cognito_groups", "aws_credentials"]:
         if key not in st.session_state:
-            st.session_state[key] = "" if key == "auth_code" else False if key == "authenticated" else []
+            st.session_state[key] = "" if key == "auth_code" else False if key == "authenticated" else [] if key == "user_cognito_groups" else None
     logger.info("Session state initialized")
 
 def get_auth_code():
@@ -71,6 +76,39 @@ def get_user_info(access_token):
         logger.error(f"Error getting user info: {e}")
         return {}
 
+def get_aws_credentials(id_token):
+    """Get AWS credentials using Cognito Identity Pool."""
+    client = boto3.client('cognito-identity', region_name=AWS_REGION)
+    
+    try:
+        # Get ID from Cognito Identity Pool
+        response = client.get_id(
+            IdentityPoolId=COGNITO_IDENTITY_POOL_ID,
+            Logins={
+                f'cognito-idp.{AWS_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}': id_token
+            }
+        )
+        identity_id = response['IdentityId']
+        
+        # Get credentials for the identity
+        response = client.get_credentials_for_identity(
+            IdentityId=identity_id,
+            Logins={
+                f'cognito-idp.{AWS_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}': id_token
+            }
+        )
+        
+        credentials = response['Credentials']
+        return {
+            'AccessKeyId': credentials['AccessKeyId'],
+            'SecretKey': credentials['SecretKey'],
+            'SessionToken': credentials['SessionToken'],
+            'Expiration': credentials['Expiration']
+        }
+    except Exception as e:
+        logger.error(f"Error getting AWS credentials: {e}")
+        return None
+
 def set_auth_session():
     """Set authentication session state."""
     initialize_session_state()
@@ -86,6 +124,15 @@ def set_auth_session():
             st.session_state.authenticated = True
             user_info = get_user_info(access_token)
             st.session_state.user_info = user_info
+            
+            # Get AWS credentials
+            aws_credentials = get_aws_credentials(id_token)
+            if aws_credentials:
+                st.session_state.aws_credentials = aws_credentials
+                logger.info("AWS credentials obtained successfully")
+            else:
+                logger.warning("Failed to obtain AWS credentials")
+            
             logger.info("Authentication successful")
         else:
             logger.warning("Failed to get tokens")
@@ -95,9 +142,11 @@ def set_auth_session():
         st.session_state.authenticated = False
 
 def login_button():
+    """Create login button."""
     login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
     return st.page_link(page=login_link, label="Log In", icon="🔑")
 
 def logout_button():
+    """Create logout button."""
     logout_link = f"{COGNITO_DOMAIN}/logout?client_id={CLIENT_ID}&logout_uri={APP_URI}"
     return st.page_link(page=logout_link, label="Log Out", icon="🚪")
