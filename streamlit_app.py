@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="wide")
 
+# Initialize session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
 set_auth_session()
 
 API_URL = os.environ.get("API_URL")
@@ -82,8 +86,12 @@ def display_historical_data(historical_data):
     selected_property = st.selectbox("Select Property", properties)
     property_data = historical_data[historical_data['property_name'] == selected_property]
 
-    st.subheader("All Data View")
-    st.dataframe(historical_data, hide_index=True)
+    st.subheader("Property Summary")
+    property_summary = property_data.groupby('unit_number').agg({
+        'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
+    })
+    property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
+    st.dataframe(property_summary)
 
     st.subheader("Price Changes")
     price_changes = property_data.groupby('unit_number').agg({
@@ -96,24 +104,28 @@ def display_historical_data(historical_data):
     st.subheader("Rent History")
     time_periods = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "Max": None}
     selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
-    
+  
     end_date = datetime.now()
     start_date = end_date - timedelta(days=time_periods[selected_period]) if time_periods[selected_period] else property_data['fetch_datetime'].min()
 
     filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
-    
+  
     fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
     st.plotly_chart(fig)
 
     st.subheader("Specific Unit Price History")
     selected_unit = st.selectbox("Select Unit", property_data['unit_number'].unique())
     unit_data = property_data[property_data['unit_number'] == selected_unit]
-    
+  
     fig_unit = px.line(unit_data, x='fetch_datetime', y='rent', title=f"Price History - Unit {selected_unit}")
     st.plotly_chart(fig_unit)
 
 def main():
-    if not st.session_state.authenticated or 'aws_credentials' not in st.session_state:
+    if not st.session_state.authenticated:
+        st.warning("Please log in to access the application.")
+        return
+
+    if 'aws_credentials' not in st.session_state:
         st.error("AWS credentials not available. Please log in again.")
         return
 
@@ -124,14 +136,14 @@ def main():
         aws_session_token=credentials['SessionToken'],
         region_name=AWS_REGION
     )
-    
+  
     histDataTab, liveDataTab, aboutTab = st.tabs(["Historical Data", "Live Data", "About"])
 
     with histDataTab:
         st.header("Historical Data")
         if 'historical_data' not in st.session_state:
             st.session_state.historical_data = load_historical_data(boto3_session)
-        
+      
         if st.session_state.historical_data is not None:
             display_historical_data(st.session_state.historical_data)
         else:
@@ -161,8 +173,4 @@ def main():
         """)
 
 title()
-
-if st.session_state.authenticated:
-    main()
-else:
-    st.info("Please log in to access the application.")
+main()
