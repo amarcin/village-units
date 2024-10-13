@@ -70,26 +70,25 @@ def fetch_units():
 
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
-@st.cache_data(ttl=3600, show_spinner=True)
-def list_parquet_files(boto3_session):
+def list_parquet_files(_boto3_session):
     """List all Parquet files in S3 bucket."""
     s3_path = f"s3://{BUCKET}/{PREFIX}/"
     try:
-        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3_session)
+        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=_boto3_session)
     except Exception as e:
         logger.error(f"Error listing Parquet files: {e}")
         raise
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_historical_data(boto3_session):
+def load_historical_data(_boto3_session):
     """Load historical data from S3."""
     try:
-        parquet_files = list_parquet_files(boto3_session)
+        parquet_files = list_parquet_files(_boto3_session)
         
         all_data = []
         for file in parquet_files:
             try:
-                df = wr.s3.read_parquet(path=file, boto3_session=boto3_session)
+                df = wr.s3.read_parquet(path=file, boto3_session=_boto3_session)
                 all_data.append(df)
             except Exception as e:
                 logger.warning(f"Error reading file {file}: {e}")
@@ -137,6 +136,8 @@ def main():
                 st.session_state.historical_data = load_historical_data(boto3_session)
                 if st.session_state.historical_data is None:
                     st.warning("No historical data available.")
+                else:
+                    st.success("Historical data loaded successfully.")
             except Exception as e:
                 st.error(f"Failed to load historical data: {e}")
 
