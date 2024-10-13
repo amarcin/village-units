@@ -5,7 +5,7 @@ import requests
 import base64
 import logging
 import boto3
-from warrant.aws_srp import AWSSRP
+import botocore
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -105,7 +105,7 @@ def get_aws_credentials(id_token):
             'SessionToken': credentials['SessionToken'],
             'Expiration': credentials['Expiration']
         }
-    except Exception as e:
+    except botocore.exceptions.ClientError as e:
         logger.error(f"Error getting AWS credentials: {e}")
         return None
 
