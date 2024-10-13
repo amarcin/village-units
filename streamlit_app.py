@@ -24,10 +24,16 @@ st.set_page_config(
 # Initialize the session
 set_auth_session()
 
-if st.session_state.authenticated:
-    logout_button()
-else:
-    login_button()
+def title():
+    title, authButton = st.columns([6, 1])
+    with title:
+        st.title("Village Data")
+    with authButton:
+        if st.session_state.authenticated:
+            logout_button()
+        else:
+            st.info("Please log in to access the application.")
+            login_button()
 
 # Define constants
 API_URL = os.environ.get("API_URL")
@@ -105,17 +111,7 @@ def load_historical_data(_boto3_session):
         logger.error(f"Error loading historical data: {e}")
         raise
 
-def main():
-    """Main application logic."""
-    title, authButton = st.columns([6, 1])
-    with title:
-        st.title("Village Data")
-    with authButton:
-        if st.session_state.authenticated:
-            logout_button()
-        else:
-            login_button()
-    
+def main():    
     # Create AWS session
     if st.session_state.authenticated and 'aws_credentials' in st.session_state:
         credentials = st.session_state.aws_credentials
@@ -227,7 +223,10 @@ def main():
             """
         )
 
+title()
+
 if st.session_state.authenticated:
     main()
 else:
-    st.warning("Please log in to access the application.")
+    # Do nothing if not authenticated
+    pass
