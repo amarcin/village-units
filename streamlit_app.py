@@ -66,24 +66,24 @@ def fetch_units():
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def list_parquet_files(s3_client):
+def list_parquet_files(_s3_client):
     """List all Parquet files in S3 bucket."""
     s3_path = f"s3://{BUCKET}/{PREFIX}/"
     try:
-        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=s3_client)
+        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3.Session(region_name=AWS_REGION))
     except Exception as e:
         st.error(f"Error listing Parquet files: {e}")
         return []
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_historical_data(s3_client):
+def load_historical_data(_s3_client):
     """Load historical data from S3."""
-    parquet_files = list_parquet_files(s3_client)
+    parquet_files = list_parquet_files(_s3_client)
     
     all_data = []
     for file in parquet_files:
         try:
-            df = wr.s3.read_parquet(path=file, boto3_session=s3_client)
+            df = wr.s3.read_parquet(path=file, boto3_session=boto3.Session(region_name=AWS_REGION))
             all_data.append(df)
         except Exception as e:
             st.warning(f"Error reading file {file}: {e}")
@@ -100,18 +100,18 @@ def main():
     """Main application logic."""
     st.title("Village Unit Analysis")
     
-    # Create AWS session using temporary credentials
+    # Create AWS session and S3 client
     if st.session_state.authenticated and 'aws_credentials' in st.session_state:
         credentials = st.session_state.aws_credentials
-        aws_session = boto3.Session(
+        session = boto3.Session(
             aws_access_key_id=credentials['AccessKeyId'],
             aws_secret_access_key=credentials['SecretKey'],
             aws_session_token=credentials['SessionToken'],
             region_name=AWS_REGION
         )
-        s3_client = aws_session.client('s3')
+        s3_client = session.client('s3')
     else:
-        st.warning("AWS credentials not available. Some features may be limited.")
+        st.warning("AWS credentials not available. Some features may not work.")
         s3_client = None
     
     histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
@@ -185,6 +185,27 @@ def main():
                 st.caption(f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}")
             else:
                 st.warning("No data available.")
+
+    with aboutTab:
+        st.markdown(
+            """
+            This app allows you to view and analyze unit data from the Village Dallas API. 
+            The data is fetched from the API and stored in a DataFrame for easy manipulation and display. 
+            The app is built using Streamlit, a popular Python library for creating data apps.
+
+            ## Features
+            - Historical data analysis
+            - Live data fetching
+            - Price change tracking
+            - Rent history visualization
+            - Specific unit price history
+
+            ## Upcoming features
+            - Price drop notifications
+            - Advanced filtering options
+            - "New units added" section
+            """
+        )
 
 if st.session_state.authenticated:
     main()
