@@ -83,11 +83,8 @@ def display_historical_data(historical_data):
     property_data = historical_data[historical_data['property_name'] == selected_property]
 
     st.subheader("Property Summary")
-    property_summary = property_data.groupby('unit_number').agg({
-        'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
-    })
-    property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
-    st.dataframe(property_summary)
+    property_summary = property_data
+    st.dataframe(property_summary, hide_index=True)
 
     st.subheader("Price Changes")
     price_changes = property_data.groupby('unit_number').agg({
