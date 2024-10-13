@@ -7,6 +7,11 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from authenticate import set_auth_session, login_button, logout_button
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Set page config
 st.set_page_config(
@@ -66,53 +71,57 @@ def fetch_units():
     return pd.DataFrame(unit_array), datetime.now(ZoneInfo("America/Chicago"))
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def list_parquet_files(_s3_client):
+def list_parquet_files(boto3_session):
     """List all Parquet files in S3 bucket."""
     s3_path = f"s3://{BUCKET}/{PREFIX}/"
     try:
-        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3.Session(region_name=AWS_REGION))
+        return wr.s3.list_objects(path=s3_path, suffix='.parquet', boto3_session=boto3_session)
     except Exception as e:
-        st.error(f"Error listing Parquet files: {e}")
-        return []
+        logger.error(f"Error listing Parquet files: {e}")
+        raise
 
 @st.cache_data(ttl=3600, show_spinner=True)
-def load_historical_data(_s3_client):
+def load_historical_data(boto3_session):
     """Load historical data from S3."""
-    parquet_files = list_parquet_files(_s3_client)
-    
-    all_data = []
-    for file in parquet_files:
-        try:
-            df = wr.s3.read_parquet(path=file, boto3_session=boto3.Session(region_name=AWS_REGION))
-            all_data.append(df)
-        except Exception as e:
-            st.warning(f"Error reading file {file}: {e}")
-    
-    if all_data:
-        combined_data = pd.concat(all_data, ignore_index=True)
-        combined_data['fetch_datetime'] = pd.to_datetime(combined_data['fetch_datetime'])
-        return combined_data
-    else:
-        st.error("No data could be loaded.")
-        return None
+    try:
+        parquet_files = list_parquet_files(boto3_session)
+        
+        all_data = []
+        for file in parquet_files:
+            try:
+                df = wr.s3.read_parquet(path=file, boto3_session=boto3_session)
+                all_data.append(df)
+            except Exception as e:
+                logger.warning(f"Error reading file {file}: {e}")
+        
+        if all_data:
+            combined_data = pd.concat(all_data, ignore_index=True)
+            combined_data['fetch_datetime'] = pd.to_datetime(combined_data['fetch_datetime'])
+            return combined_data
+        else:
+            logger.error("No data could be loaded.")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading historical data: {e}")
+        raise
 
 def main():
     """Main application logic."""
     st.title("Village Unit Analysis")
     
-    # Create AWS session and S3 client
+    # Create AWS session
     if st.session_state.authenticated and 'aws_credentials' in st.session_state:
         credentials = st.session_state.aws_credentials
-        session = boto3.Session(
+        boto3_session = boto3.Session(
             aws_access_key_id=credentials['AccessKeyId'],
             aws_secret_access_key=credentials['SecretKey'],
             aws_session_token=credentials['SessionToken'],
             region_name=AWS_REGION
         )
-        s3_client = session.client('s3')
+        logger.info("AWS session created successfully")
     else:
-        st.warning("AWS credentials not available. Some features may not work.")
-        s3_client = None
+        st.error("AWS credentials not available. Please log in again.")
+        return
     
     histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
         ["Historical Data", "Live Data", "Tracker", "About"]
@@ -124,10 +133,12 @@ def main():
             st.session_state.historical_data = None
 
         if st.button("Load Historical Data") or st.session_state.historical_data is None:
-            if s3_client:
-                st.session_state.historical_data = load_historical_data(s3_client)
-            else:
-                st.error("Cannot load historical data without AWS credentials.")
+            try:
+                st.session_state.historical_data = load_historical_data(boto3_session)
+                if st.session_state.historical_data is None:
+                    st.warning("No historical data available.")
+            except Exception as e:
+                st.error(f"Failed to load historical data: {e}")
 
         if st.session_state.historical_data is not None:
             properties = st.session_state.historical_data['property_name'].unique()
