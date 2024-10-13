@@ -125,8 +125,8 @@ def main():
         st.error("AWS credentials not available. Please log in again.")
         return
     
-    histDataTab, liveDataTab, trackerTab, aboutTab = st.tabs(
-        ["Historical Data", "Live Data", "Tracker", "About"]
+    histDataTab, liveDataTab, aboutTab = st.tabs(
+        ["Historical Data", "Live Data", "About"]
     )
 
     with histDataTab:
@@ -140,7 +140,7 @@ def main():
                 if st.session_state.historical_data is None:
                     st.warning("No historical data available.")
                 else:
-                    st.success("Historical data loaded successfully.")
+                    pass
             except Exception as e:
                 st.error(f"Failed to load historical data: {e}")
 
@@ -204,17 +204,6 @@ def main():
     with aboutTab:
         st.markdown(
             """
-            This app allows you to view and analyze unit data from the Village Dallas API. 
-            The data is fetched from the API and stored in a DataFrame for easy manipulation and display. 
-            The app is built using Streamlit, a popular Python library for creating data apps.
-
-            ## Features
-            - Historical data analysis
-            - Live data fetching
-            - Price change tracking
-            - Rent history visualization
-            - Specific unit price history
-
             ## Upcoming features
             - Price drop notifications
             - Advanced filtering options
