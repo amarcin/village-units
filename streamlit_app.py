@@ -49,7 +49,7 @@ def fetch_units():
 
     while True:
         try:
-            r = session.get(URL, params={"page": page})
+            r = session.get(API_URL, params={"page": page})
             r.raise_for_status()
             data = r.json()
             units = data.get("units", [])
@@ -134,20 +134,17 @@ def main():
         if 'historical_data' not in st.session_state:
             st.session_state.historical_data = None
 
-        if st.button("Load Historical Data") or st.session_state.historical_data is None:
-            try:
-                st.session_state.historical_data = load_historical_data(boto3_session)
-                if st.session_state.historical_data is None:
-                    st.warning("No historical data available.")
-                else:
-                    pass
-            except Exception as e:
-                st.error(f"Failed to load historical data: {e}")
-
         if st.session_state.historical_data is not None:
             properties = st.session_state.historical_data['property_name'].unique()
             selected_property = st.selectbox("Select Property", properties)
             property_data = st.session_state.historical_data[st.session_state.historical_data['property_name'] == selected_property]
+
+            st.subheader("Property Summary")
+            property_summary = property_data.groupby('unit_number').agg({
+                'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
+            })
+            property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
+            st.dataframe(property_summary)
 
             st.subheader("Price Changes")
             price_changes = property_data.groupby('unit_number').agg({
