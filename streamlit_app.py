@@ -133,6 +133,16 @@ def main():
         st.header("Historical Data")
         if 'historical_data' not in st.session_state:
             st.session_state.historical_data = None
+            
+        if st.session_state.historical_data is None:
+            try:
+                st.session_state.historical_data = load_historical_data(boto3_session)
+                if st.session_state.historical_data is None:
+                    st.warning("No historical data available.")
+                else:
+                    pass
+            except Exception as e:
+                st.error(f"Failed to load historical data: {e}")
 
         if st.session_state.historical_data is not None:
             properties = st.session_state.historical_data['property_name'].unique()
