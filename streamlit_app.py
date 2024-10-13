@@ -82,9 +82,8 @@ def display_historical_data(historical_data):
     selected_property = st.selectbox("Select Property", properties)
     property_data = historical_data[historical_data['property_name'] == selected_property]
 
-    st.subheader("Property Summary")
-    property_summary = property_data
-    st.dataframe(property_summary, hide_index=True)
+    st.subheader("All Data View")
+    st.dataframe(historical_data, hide_index=True)
 
     st.subheader("Price Changes")
     price_changes = property_data.groupby('unit_number').agg({
