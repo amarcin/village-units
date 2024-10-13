@@ -25,7 +25,11 @@ AWS_REGION = os.environ.get("AWS_REGION")
 def title():
     col1, col2 = st.columns([6, 1])
     col1.title("Village Data")
-    col2.write(logout_button() if st.session_state.authenticated else login_button())
+    with col2:
+        if st.session_state.authenticated:
+            logout_button()
+        else:
+            login_button()
 
 @st.cache_data(show_spinner=True, ttl=21600)
 def fetch_units():
