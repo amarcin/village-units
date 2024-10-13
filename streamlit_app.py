@@ -29,10 +29,10 @@ else:
     login_button()
 
 # Define constants
-URL = "https://api.thevillagedallas.com/units/search"
-BUCKET = "am-apartment-data"
-PREFIX = "lambda-fetch"
-AWS_REGION = "us-east-1"  # Replace with your AWS region
+API_URL = os.environ.get("API_URL")
+BUCKET = os.environ.get("BUCKET")
+PREFIX = os.environ.get("PREFIX")
+AWS_REGION = os.environ.get("AWS_REGION")
 
 @st.cache_data(show_spinner=True, ttl=21600)
 def fetch_units():
