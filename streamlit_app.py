@@ -144,7 +144,7 @@ def main():
         region_name=AWS_REGION
     )
   
-    trackerTab, liveDataTab, aboutTab = st.tabs(["Historical Data", "Live Data", "About"])
+    trackerTab, liveDataTab, aboutTab = st.tabs(["Price Tracker", "Live Data", "About"])
 
     with trackerTab:
         st.header("Price Tracker")
