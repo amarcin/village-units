@@ -82,14 +82,14 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     properties = historical_data['property_name'].unique()
-    selected_property = st.selectbox("Select Property", properties)
-    property_data = historical_data[historical_data['property_name'] == selected_property]
+    property_filter = st.selectbox("Select Property", properties)
+    property_data = historical_data[historical_data['property_name'] == property_filter]
 
-    st.subheader("Property Summary")
+    st.subheader("Rent Summary")
     property_summary = property_data.groupby('unit_number').agg({
-        'rent': ['first', 'last', 'count', 'mean', 'median', 'min', 'max']
+        'rent': ['last', 'mean', 'min', 'max']
     })
-    property_summary.columns = ['Initial Rent', 'Current Rent', 'Count', 'Mean Rent', 'Median Rent', 'Minimum Rent', 'Maximum Rent']
+    property_summary.columns = ['Current', 'Avg', 'Min', 'Max']
     st.dataframe(property_summary)
 
     st.subheader("Price Changes")
@@ -117,7 +117,7 @@ def display_historical_data(historical_data):
 
     filtered_data = property_data[(property_data['fetch_datetime'] >= start_date) & (property_data['fetch_datetime'] <= end_date)]
 
-    fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {selected_property}")
+    fig = px.line(filtered_data, x='fetch_datetime', y='rent', color='unit_number', title=f"Rent History - {property_filter}")
     st.plotly_chart(fig)
 
     st.subheader("Specific Unit Price History")
@@ -144,10 +144,10 @@ def main():
         region_name=AWS_REGION
     )
   
-    histDataTab, liveDataTab, aboutTab = st.tabs(["Historical Data", "Live Data", "About"])
+    trackerTab, liveDataTab, aboutTab = st.tabs(["Historical Data", "Live Data", "About"])
 
-    with histDataTab:
-        st.header("Historical Data")
+    with trackerTab:
+        st.header("Price Tracker")
         if 'historical_data' not in st.session_state:
             st.session_state.historical_data = load_historical_data(boto3_session)
       
