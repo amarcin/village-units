@@ -176,7 +176,8 @@ def main():
         ## Upcoming features
         - Price drop notifications
         - Advanced filtering options
-        - "New units added" section
+        - New units added section
+        - Price changes by number of bedrooms
         """)
 
 title()
