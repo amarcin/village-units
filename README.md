@@ -4,7 +4,7 @@
 
 Request user access from me, then use the below link.
 
-https://village.streamlit.app
+**[https://village.streamlit.app](https://village.streamlit.app)**
 
 It's hosted on Streamlit Community Cloud.
 
@@ -14,13 +14,15 @@ Village Data is a Streamlit-based web application that provides insights into re
 
 ## Features
 
-1. **Price Tracker**: 
+1. **Price Tracker**:
+
    - View rent summaries for selected properties
    - Analyze price changes over time
    - Visualize rent history for multiple units
    - Explore specific unit price history
 
 2. **Live Data**:
+
    - Fetch and display current rental rates
    - View detailed unit information including amenities and floorplans
 
@@ -31,19 +33,21 @@ Village Data is a Streamlit-based web application that provides insights into re
 ## Installation
 
 1. Clone the repository:
-   ```
+
+   ```bash
    git clone https://github.com/yourusername/village-data-app.git
    cd village-data-app
    ```
 
 2. Install required packages:
-   ```
+
+   ```bash
    pip install -r requirements.txt
    ```
 
 3. Set up environment variables:
    Create a `.env` file in the root directory and add the following variables:
-   ```
+   ```env
    API_URL=<your_api_url>
    BUCKET=<your_s3_bucket_name>
    PREFIX=<your_s3_prefix>
@@ -59,7 +63,8 @@ Village Data is a Streamlit-based web application that provides insights into re
 ## Usage
 
 Run the Streamlit app:
-```
+
+```bash
 streamlit run app.py
 ```
 
