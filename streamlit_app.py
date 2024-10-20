@@ -48,6 +48,9 @@ def initialize_session_state():
         }
     logger.info("Session state initialized")
 
+# Call initialize_session_state at the start of the script
+initialize_session_state()
+
 def get_auth_code():
     """Get authorization code from query parameters."""
     try:
@@ -131,8 +134,6 @@ def get_aws_credentials(id_token):
 
 def set_auth_session():
     """Set authentication session state."""
-    initialize_session_state()
-
     # Check if already authenticated and credentials are still valid
     if (
         st.session_state.auth_state["authenticated"]
