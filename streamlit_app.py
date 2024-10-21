@@ -251,8 +251,7 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
-    include_unavailable = st.sidebar.checkbox("Include Unavailable Units", value=False)
-    include_unavailable = st.sidebar.checkbox("Include Unavailable Units", value=False)
+    include_unavailable = st.sidebar.checkbox("Include Unavailable Units", value=False, key="include_unavailable_checkbox")
     properties = historical_data["property_name"].unique()
     property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
