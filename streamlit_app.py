@@ -283,18 +283,18 @@ def display_historical_data(historical_data):
     if unit_filter:
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
-    rent_min = int(filtered_data["rent"].min(skipna=True) if pd.notna(filtered_data["rent"].min()) else 0)
-rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
-if rent_min == rent_max:
-    rent_max += 1
-rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
+        rent_min = int(filtered_data["rent"].min(skipna=True) if pd.notna(filtered_data["rent"].min()) else 0)
+    rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
+    if rent_min == rent_max:
+        rent_max += 1
+    rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-    sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
-sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
-if sqft_min == sqft_max:
-    sqft_max += 1
-sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
+        sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
+    sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
+    if sqft_min == sqft_max:
+        sqft_max += 1
+    sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
     filtered_data = filtered_data[(filtered_data["floorplan_sqft"] >= sqft_filter[0]) & (filtered_data["floorplan_sqft"] <= sqft_filter[1])]
 
     amenities_list = set(amenity for amenities in filtered_data["amenities"].dropna() for amenity in amenities.split(", "))
