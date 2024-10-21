@@ -314,6 +314,9 @@ def display_historical_data(historical_data):
             )
         },
     )
+    st.caption(
+                    f"Count: {filtered_data.count}"
+                )
 
     # Display the rent history chart
     st.header("Rent History")
