@@ -266,9 +266,12 @@ def load_historical_data(_boto3_session):
         logger.error(f"Error loading historical data: {e}")
         return None
 
-    if filtered_data.empty:
-        st.info("No results match your filters.")
-        return
+def display_historical_data(historical_data):
+    st.sidebar.header("Filters")
+    properties = historical_data["property_name"].unique()
+    property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
+    
+    filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
@@ -293,6 +296,10 @@ def load_historical_data(_boto3_session):
 
     # Filter to get the most recent records per unit
     filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
+
+    if filtered_data.empty:
+        st.info("No results match your filters.")
+        return
 
     st.header("Units")
     st.dataframe(
