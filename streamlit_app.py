@@ -49,7 +49,7 @@ initialize_session_state()
 
 def get_auth_code():
     try:
-        return st.query_params.get("code", "")
+        return st.experimental_get_query_params().get("code", [""])[0]
     except Exception as e:
         logger.error(f"Error getting auth code: {e}")
         return ""
@@ -159,11 +159,9 @@ def set_auth_session():
         logger.info("No auth code present")
         st.session_state.auth_state["authenticated"] = False
 
-    st.query_params.clear()
-
 def login_button():
     login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
-    st.page_link(page=login_link, label="Log In", icon="🔑")
+    st.markdown(f"[Log In]({login_link})")
 
 def logout_button():
     if st.button("Log Out", key="logout_button"):
@@ -173,7 +171,7 @@ def logout_button():
             "aws_credentials": None,
             "credentials_expiration": None,
         }
-        st.rerun()
+        st.experimental_rerun()
 
 def title():
     col1, col2 = st.columns([6, 1])
@@ -259,9 +257,125 @@ def display_historical_data(historical_data):
     if unit_filter:
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
+    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
+    today = datetime.now().date()
+    available_units = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
+    if not include_unavailable:
+        filtered_data = available_units
+
+    if filtered_data.empty:
+        st.info("No results match your filters.")
+        return
+
     rent_min = int(filtered_data["rent"].min(skipna=True) if pd.notna(filtered_data["rent"].min()) else 0)
     rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
     if rent_min == rent_max:
         rent_max += 1
     rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
-    filtered
+    filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
+
+    sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
+    sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
+    if sqft_min == sqft_max:
+        sqft_max += 1
+    sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
+    filtered_data = filtered_data[(filtered_data["floorplan_sqft"] >= sqft_filter[0]) & (filtered_data["floorplan_sqft"] <= sqft_filter[1])]
+
+    amenities_list = set(amenity for amenities in filtered_data["amenities"].dropna() for amenity in amenities.split(", "))
+    amenities_filter = st.sidebar.multiselect("Amenities", sorted(amenities_list))
+    if amenities_filter:
+        filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
+
+    filtered_data = filtered_data.sort_values(by=["unit_number", "building", "property_name", "fetch_datetime"], ascending=[True, True, True, False]).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
+
+    if filtered_data.empty:
+        st.info("No results match your filters.")
+        return
+
+    st.header("Units")
+    st.dataframe(
+        filtered_data,
+        hide_index=True,
+        column_config={
+            "Floorplan": st.column_config.LinkColumn(
+                "Floorplan", display_text="View"
+            )
+        },
+    )
+
+    st.header("Rent History")
+    fig = px.line(
+        filtered_data,
+        x="fetch_datetime",
+        y="rent",
+        color="unit_number",
+        line_group="building",
+        title="Rent History"
+    )
+    st.plotly_chart(fig)
+
+def main():
+    set_auth_session()
+
+    if not st.session_state.auth_state["authenticated"]:
+        st.warning("Please log in to access the application.")
+        return
+
+    credentials = st.session_state.auth_state["aws_credentials"]
+    if not credentials:
+        st.error("AWS credentials not available. Please log in again.")
+        return
+
+    boto3_session = boto3.Session(
+        aws_access_key_id=credentials["AccessKeyId"],
+        aws_secret_access_key=credentials["SecretKey"],
+        aws_session_token=credentials["SessionToken"],
+        region_name=AWS_REGION,
+    )
+
+    trackerTab, liveDataTab, aboutTab = st.tabs(["Price Tracker", "Live Data", "About"])
+
+    with trackerTab:
+        if "historical_data" not in st.session_state:
+            st.session_state.historical_data = load_historical_data(boto3_session)
+
+        if st.session_state.historical_data is not None:
+            display_historical_data(st.session_state.historical_data)
+        else:
+            st.warning("No historical data available.")
+
+    with liveDataTab:
+        st.header("Today's Rates")
+        if st.button("Fetch Live Data"):
+            df, last_updated = fetch_units()
+            if df is not None and not df.empty:
+                df["Amenities"] = df["Amenities"].str.split(", ")
+                st.dataframe(
+                    df,
+                    hide_index=True,
+                    column_config={
+                        "Floorplan": st.column_config.LinkColumn(
+                            "Floorplan", display_text="View"
+                        )
+                    },
+                )
+                st.caption(
+                    f"Last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')}"
+                )
+            else:
+                st.warning("No data available.")
+
+    with aboutTab:
+        st.markdown(
+            """
+        ## Upcoming features
+        - Price drop notifications
+        - Advanced filtering options
+        - New units added section
+        - Price changes by number of bedrooms
+        """
+        )
+
+if __name__ == "__main__":
+    title()
+    main()
