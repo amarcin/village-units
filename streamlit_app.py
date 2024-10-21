@@ -318,11 +318,7 @@ def display_historical_data(historical_data):
         y="rent",
         color="unit_number",
         line_group="building",
-        title="Rent History",
-        x="fetch_datetime",
-        y="rent",
-        color="unit_number",
-        title="Rent History",
+        title="Rent History"
     )
     st.plotly_chart(fig)
 
