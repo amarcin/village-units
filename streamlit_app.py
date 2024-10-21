@@ -33,7 +33,7 @@ APP_URI = os.getenv("APP_URI")
 COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID")
 COGNITO_IDENTITY_POOL_ID = os.getenv("COGNITO_IDENTITY_POOL_ID")
 
-st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="wide")
+st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="centered")
 
 # Authentication functions
 
@@ -264,18 +264,32 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     properties = historical_data["property_name"].unique()
-    property_filter = st.selectbox("Select Property", properties)
-    property_data = historical_data[historical_data["property_name"] == property_filter]
+    property_filter = st.selectbox("Select Property", ["All"] + list(properties))
+    
+    filtered_data = historical_data
+    if property_filter != "All":
+        filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
+
+    beds_filter = st.selectbox("Select Number of Beds", ["All"] + sorted(filtered_data["beds"].unique()))
+    if beds_filter != "All":
+        filtered_data = filtered_data[filtered_data["beds"] == beds_filter]
+
+    unit_filter = st.selectbox("Select Unit", ["All"] + sorted(filtered_data["unit_number"].unique()))
+    if unit_filter != "All":
+        filtered_data = filtered_data[filtered_data["unit_number"] == unit_filter]
+
+    rent_filter = st.slider("Select Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
+    filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
     st.subheader("Rent Summary")
-    property_summary = property_data.groupby("unit_number").agg(
+    property_summary = filtered_data.groupby("unit_number").agg(
         {"rent": ["last", "mean", "min", "max"]}
     )
     property_summary.columns = ["Current", "Avg", "Min", "Max"]
     st.dataframe(property_summary)
 
     st.subheader("Price Changes")
-    price_changes = property_data.groupby("unit_number").agg(
+    price_changes = filtered_data.groupby("unit_number").agg(
         {"rent": ["first", "last", lambda x: x.diff().sum()]}
     )
     price_changes.columns = ["Initial Rent", "Current Rent", "Total Change"]
@@ -299,17 +313,17 @@ def display_historical_data(historical_data):
     if time_periods[selected_period]:
         start_date = end_date - timedelta(days=time_periods[selected_period])
     else:
-        start_date = property_data["fetch_datetime"].min().replace(tzinfo=pytz.UTC)
+        start_date = filtered_data["fetch_datetime"].min().replace(tzinfo=pytz.UTC)
 
-    # Ensure property_data['fetch_datetime'] is timezone-aware
-    if property_data["fetch_datetime"].dt.tz is None:
-        property_data["fetch_datetime"] = property_data[
+    # Ensure filtered_data['fetch_datetime'] is timezone-aware
+    if filtered_data["fetch_datetime"].dt.tz is None:
+        filtered_data["fetch_datetime"] = filtered_data[
             "fetch_datetime"
         ].dt.tz_localize(pytz.UTC)
 
-    filtered_data = property_data[
-        (property_data["fetch_datetime"] >= start_date)
-        & (property_data["fetch_datetime"] <= end_date)
+    filtered_data = filtered_data[
+        (filtered_data["fetch_datetime"] >= start_date)
+        & (filtered_data["fetch_datetime"] <= end_date)
     ]
 
     fig = px.line(
@@ -317,21 +331,22 @@ def display_historical_data(historical_data):
         x="fetch_datetime",
         y="rent",
         color="unit_number",
-        title=f"Rent History - {property_filter}",
+        title=f"Rent History - {property_filter if property_filter != 'All' else 'All Properties'}",
     )
     st.plotly_chart(fig)
 
-    st.subheader("Specific Unit Price History")
-    selected_unit = st.selectbox("Select Unit", property_data["unit_number"].unique())
-    unit_data = property_data[property_data["unit_number"] == selected_unit]
+    if unit_filter == "All":
+        st.subheader("Specific Unit Price History")
+        selected_unit = st.selectbox("Select Unit for Detailed History", filtered_data["unit_number"].unique())
+        unit_data = filtered_data[filtered_data["unit_number"] == selected_unit]
 
-    fig_unit = px.line(
-        unit_data,
-        x="fetch_datetime",
-        y="rent",
-        title=f"Price History - Unit {selected_unit}",
-    )
-    st.plotly_chart(fig_unit)
+        fig_unit = px.line(
+            unit_data,
+            x="fetch_datetime",
+            y="rent",
+            title=f"Price History - Unit {selected_unit}",
+        )
+        st.plotly_chart(fig_unit)
 
 def main():
     set_auth_session()
@@ -355,7 +370,6 @@ def main():
     trackerTab, liveDataTab, aboutTab = st.tabs(["Price Tracker", "Live Data", "About"])
 
     with trackerTab:
-        st.header("Price Tracker")
         if "historical_data" not in st.session_state:
             st.session_state.historical_data = load_historical_data(boto3_session)
 
