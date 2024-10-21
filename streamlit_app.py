@@ -260,13 +260,18 @@ def display_historical_data(historical_data):
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
     include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
-    today = datetime.now().date()
+    
+    # Get the most recent date in the data
+    most_recent_date = filtered_data["fetch_datetime"].max().date()
+    
+    # Create a DataFrame of the most recent data
+    most_recent_data = filtered_data[filtered_data["fetch_datetime"].dt.date == most_recent_date]
+    
+    # Get the list of available unit numbers from the most recent data
+    available_units = set(most_recent_data["unit_number"])
+    
     if not include_unavailable:
-        filtered_data = filtered_data[filtered_data["availability"] == True]
-        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
-    else:
-        # If including unavailable units, still filter to the most recent data
-        filtered_data = filtered_data.sort_values("fetch_datetime", ascending=False).groupby(["unit_number", "building", "property_name"]).first().reset_index()
+        filtered_data = filtered_data[filtered_data["unit_number"].isin(available_units)]
 
     if filtered_data.empty:
         st.info("No results match your filters.")
@@ -291,12 +296,14 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
+    # Sort and deduplicate to show the most recent data for each unit
     filtered_data = filtered_data.sort_values(by=["unit_number", "building", "property_name", "fetch_datetime"], ascending=[True, True, True, False]).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
 
     if filtered_data.empty:
         st.info("No results match your filters.")
         return
 
+    # Display the data
     st.header("Units")
     st.dataframe(
         filtered_data,
@@ -308,6 +315,7 @@ def display_historical_data(historical_data):
         },
     )
 
+    # Display the rent history chart
     st.header("Rent History")
     fig = px.line(
         filtered_data,
