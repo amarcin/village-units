@@ -251,8 +251,9 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
-    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
+    
     properties = historical_data["property_name"].unique()
+    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
     property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
     filtered_data = historical_data
@@ -260,9 +261,8 @@ def display_historical_data(historical_data):
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
     today = datetime.now().date()
-    available_units = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
     if not include_unavailable:
-        filtered_data = available_units
+        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
 
     beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(available_units["floorplan_beds"].dropna().unique()))
     if beds_filter != "All":
