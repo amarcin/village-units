@@ -251,7 +251,7 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
-    include_unavailable = st.sidebar.checkbox("Include Unavailable Units", value=False, key="include_unavailable_checkbox")
+    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
     properties = historical_data["property_name"].unique()
     property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
@@ -259,11 +259,12 @@ def display_historical_data(historical_data):
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
+    today = datetime.now().date()
+    available_units = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
     if not include_unavailable:
-        today = datetime.now().date()
-        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
+        filtered_data = available_units
 
-    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].dropna().unique()))
+    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(available_units["floorplan_beds"].dropna().unique()))
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
@@ -275,15 +276,15 @@ def display_historical_data(historical_data):
         st.info("No results match your filters.")
         return
 
-    rent_min = int(filtered_data["rent"].min(skipna=True) if pd.notna(filtered_data["rent"].min()) else 0)
-    rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
+    rent_min = int(available_units["rent"].min(skipna=True) if pd.notna(available_units["rent"].min()) else 0)
+    rent_max = int(available_units["rent"].max(skipna=True) if pd.notna(available_units["rent"].max()) else 10000)
     if rent_min == rent_max:
         rent_max += 1
     rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-    sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
-    sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
+    sqft_min = int(available_units["floorplan_sqft"].min(skipna=True) if pd.notna(available_units["floorplan_sqft"].min()) else 0)
+    sqft_max = int(available_units["floorplan_sqft"].max(skipna=True) if pd.notna(available_units["floorplan_sqft"].max()) else 5000)
     if sqft_min == sqft_max:
         sqft_max += 1
     sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
