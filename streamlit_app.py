@@ -49,7 +49,7 @@ initialize_session_state()
 
 def get_auth_code():
     try:
-        return st.experimental_get_query_params().get("code", [""])[0]
+        return st.query_params.get("code", "")
     except Exception as e:
         logger.error(f"Error getting auth code: {e}")
         return ""
@@ -159,9 +159,11 @@ def set_auth_session():
         logger.info("No auth code present")
         st.session_state.auth_state["authenticated"] = False
 
+    st.query_params.clear()
+
 def login_button():
     login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
-    st.markdown(f"[Log In]({login_link})")
+    st.page_link(page=login_link, label="Log In", icon="🔑")
 
 def logout_button():
     if st.button("Log Out", key="logout_button"):
@@ -171,7 +173,7 @@ def logout_button():
             "aws_credentials": None,
             "credentials_expiration": None,
         }
-        st.experimental_rerun()
+        st.rerun()
 
 def title():
     col1, col2 = st.columns([6, 1])
@@ -258,10 +260,18 @@ def display_historical_data(historical_data):
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
     include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
-    today = datetime.now().date()
-    available_units = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
+    
+    # Get the most recent date in the data
+    most_recent_date = filtered_data["fetch_datetime"].max().date()
+    
+    # Create a DataFrame of the most recent data
+    most_recent_data = filtered_data[filtered_data["fetch_datetime"].dt.date == most_recent_date]
+    
+    # Get the list of available unit numbers from the most recent data
+    available_units = set(most_recent_data["unit_number"])
+    
     if not include_unavailable:
-        filtered_data = available_units
+        filtered_data = filtered_data[filtered_data["unit_number"].isin(available_units)]
 
     if filtered_data.empty:
         st.info("No results match your filters.")
@@ -286,12 +296,14 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
+    # Sort and deduplicate to show the most recent data for each unit
     filtered_data = filtered_data.sort_values(by=["unit_number", "building", "property_name", "fetch_datetime"], ascending=[True, True, True, False]).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
 
     if filtered_data.empty:
         st.info("No results match your filters.")
         return
 
+    # Display the data
     st.header("Units")
     st.dataframe(
         filtered_data,
@@ -303,6 +315,7 @@ def display_historical_data(historical_data):
         },
     )
 
+    # Display the rent history chart
     st.header("Rent History")
     fig = px.line(
         filtered_data,
