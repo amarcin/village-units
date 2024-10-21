@@ -223,7 +223,7 @@ def fetch_units():
                         "Unit": unit.get("unit_number"),
                         "Rent": unit.get("rent"),
                         "Property": unit.get("property", {}).get("name"),
-                        "Beds": unit.get("floorplan", {}).get("Beds"),
+                        "beds": unit.get("floorplan", {}).get("beds"),
                         "Sqft": unit.get("floorplan", {}).get("sqft"),
                         "Floorplan": unit.get("floorplan", {})
                         .get("media", [{}])[0]
@@ -270,9 +270,9 @@ def display_historical_data(historical_data):
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    Beds_filter = st.selectbox("Select Number of Beds", ["All"] + sorted(filtered_data["Beds"].unique()))
-    if Beds_filter != "All":
-        filtered_data = filtered_data[filtered_data["Beds"] == Beds_filter]
+    beds_filter = st.selectbox("Select Number of beds", ["All"] + sorted(filtered_data["beds"].unique()))
+    if beds_filter != "All":
+        filtered_data = filtered_data[filtered_data["beds"] == beds_filter]
 
     unit_filter = st.selectbox("Select Unit", ["All"] + sorted(filtered_data["unit_number"].unique()))
     if unit_filter != "All":
