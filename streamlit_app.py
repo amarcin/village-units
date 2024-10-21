@@ -256,6 +256,7 @@ def load_historical_data(_boto3_session):
             ],
             ignore_index=True,
         )
+        all_data.columns = all_data.columns.str.lower()  # Convert all column names to lowercase
         all_data["fetch_datetime"] = pd.to_datetime(all_data["fetch_datetime"])
         return all_data
     except Exception as e:
@@ -270,9 +271,12 @@ def display_historical_data(historical_data):
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    beds_filter = st.selectbox("Select Number of beds", ["All"] + sorted(filtered_data["beds"].unique()))
-    if beds_filter != "All":
-        filtered_data = filtered_data[filtered_data["beds"] == beds_filter]
+    if "beds" in filtered_data.columns:
+        beds_filter = st.selectbox("Select Number of beds", ["All"] + sorted(filtered_data["beds"].unique()))
+        if beds_filter != "All":
+            filtered_data = filtered_data[filtered_data["beds"] == beds_filter]
+    else:
+        st.warning("Column 'beds' not found in the dataset.")
 
     unit_filter = st.selectbox("Select Unit", ["All"] + sorted(filtered_data["unit_number"].unique()))
     if unit_filter != "All":
