@@ -41,7 +41,6 @@ st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="c
 # Authentication functions
 
 def initialize_session_state():
-    """Initialize Streamlit session state variables."""
     if "auth_state" not in st.session_state:
         st.session_state.auth_state = {
             "authenticated": False,
@@ -55,7 +54,6 @@ def initialize_session_state():
 initialize_session_state()
 
 def get_auth_code():
-    """Get authorization code from query parameters."""
     try:
         return st.query_params.get("code", "")
     except Exception as e:
@@ -63,12 +61,9 @@ def get_auth_code():
         return ""
 
 def get_user_tokens(auth_code):
-    """Get user tokens from Cognito server."""
     token_url = f"{COGNITO_DOMAIN}/oauth2/token"
     client_secret_string = f"{CLIENT_ID}:{CLIENT_SECRET}"
-    client_secret_encoded = base64.b64encode(
-        client_secret_string.encode("utf-8")
-    ).decode("utf-8")
+    client_secret_encoded = base64.b64encode(client_secret_string.encode("utf-8")).decode("utf-8")
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": f"Basic {client_secret_encoded}",
@@ -90,7 +85,6 @@ def get_user_tokens(auth_code):
         return "", ""
 
 def get_user_info(access_token):
-    """Get user info from Cognito server."""
     userinfo_url = f"{COGNITO_DOMAIN}/oauth2/userInfo"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -105,7 +99,6 @@ def get_user_info(access_token):
         return {}
 
 def get_aws_credentials(id_token):
-    """Get AWS credentials using Cognito Identity Pool."""
     client = boto3.client("cognito-identity", region_name=AWS_REGION)
 
     try:
@@ -136,8 +129,6 @@ def get_aws_credentials(id_token):
         return None
 
 def set_auth_session():
-    """Set authentication session state."""
-    # Check if already authenticated and credentials are still valid
     if (
         st.session_state.auth_state["authenticated"]
         and st.session_state.auth_state["credentials_expiration"]
@@ -157,15 +148,12 @@ def set_auth_session():
             logger.info("Tokens received, setting session state")
             user_info = get_user_info(access_token)
 
-            # Get AWS credentials
             aws_credentials = get_aws_credentials(id_token)
             if aws_credentials:
                 st.session_state.auth_state["authenticated"] = True
                 st.session_state.auth_state["user_info"] = user_info
                 st.session_state.auth_state["aws_credentials"] = aws_credentials
-                st.session_state.auth_state["credentials_expiration"] = aws_credentials[
-                    "Expiration"
-                ]
+                st.session_state.auth_state["credentials_expiration"] = aws_credentials["Expiration"]
                 logger.info("Authentication successful")
             else:
                 logger.warning("Failed to obtain AWS credentials")
@@ -177,16 +165,13 @@ def set_auth_session():
         logger.info("No auth code present")
         st.session_state.auth_state["authenticated"] = False
 
-    # Clear the code from query params to avoid reprocessing
     st.query_params.clear()
 
 def login_button():
-    """Create login button."""
     login_link = f"{COGNITO_DOMAIN}/login?client_id={CLIENT_ID}&response_type=code&scope=email+openid&redirect_uri={APP_URI}"
     st.page_link(page=login_link, label="Log In", icon="🔑")
 
 def logout_button():
-    """Create logout button."""
     if st.button("Log Out", key="logout_button"):
         st.session_state.auth_state = {
             "authenticated": False,
@@ -228,9 +213,7 @@ def fetch_units():
                         "Property": unit.get("property", {}).get("name"),
                         "Beds": unit.get("floorplan", {}).get("beds"),
                         "Sqft": unit.get("floorplan", {}).get("sqft"),
-                        "Floorplan": unit.get("floorplan", {})
-                        .get("media", [{}])[0]
-                        .get("url"),
+                        "Floorplan": unit.get("floorplan", {}).get("media", [{}])[0].get("url"),
                         "Available": unit.get("availability"),
                         "Building": unit.get("building"),
                         "Amenities": ", ".join(unit.get("amenities", [])),
@@ -259,7 +242,7 @@ def load_historical_data(_boto3_session):
             ],
             ignore_index=True,
         )
-        all_data.columns = all_data.columns.str.lower()  # Convert all column names to lowercase
+        all_data.columns = all_data.columns.str.lower()
         all_data["fetch_datetime"] = pd.to_datetime(all_data["fetch_datetime"])
         return all_data
     except Exception as e:
@@ -275,7 +258,7 @@ def display_historical_data(historical_data):
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
+    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].dropna().unique()))
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
@@ -291,15 +274,11 @@ def display_historical_data(historical_data):
     rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
     if rent_min == rent_max:
         rent_max += 1
-    if rent_min == rent_max:
-        rent_max += 1
     rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-            sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
+    sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
     sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
-    if sqft_min == sqft_max:
-        sqft_max += 1
     if sqft_min == sqft_max:
         sqft_max += 1
     sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
@@ -310,7 +289,6 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
-    # Filter to get the most recent records per unit
     filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
 
     if filtered_data.empty:
