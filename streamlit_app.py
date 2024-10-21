@@ -269,28 +269,28 @@ def load_historical_data(_boto3_session):
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
     properties = historical_data["property_name"].unique()
-    property_filter = st.sidebar.selectbox("Select Property", ["All"] + list(properties))
+    property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
     filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    beds_filter = st.sidebar.selectbox("Select Number of Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
+    beds_filter = st.sidebar.selectbox("Number of Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
-    unit_filter = st.sidebar.text_input("Enter Unit Number")
+    unit_filter = st.sidebar.text_input("Unit Number")
     if unit_filter:
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
-    rent_filter = st.sidebar.slider("Select Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
+    rent_filter = st.sidebar.slider("Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-    sqft_filter = st.sidebar.slider("Select Square Footage Range", int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max()), (int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max())))
+    sqft_filter = st.sidebar.slider("Square Footage Range", int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max()), (int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max())))
     filtered_data = filtered_data[(filtered_data["floorplan_sqft"] >= sqft_filter[0]) & (filtered_data["floorplan_sqft"] <= sqft_filter[1])]
 
     amenities_list = set(amenity for amenities in filtered_data["amenities"].dropna() for amenity in amenities.split(", "))
-    amenities_filter = st.sidebar.multiselect("Select Amenities", sorted(amenities_list))
+    amenities_filter = st.sidebar.multiselect("Amenities", sorted(amenities_list))
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
