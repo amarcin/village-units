@@ -251,12 +251,17 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
+    show_unavailable = st.sidebar.checkbox("Show Unavailable Units", value=False)
     properties = historical_data["property_name"].unique()
     property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
     filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
+
+    if not show_unavailable:
+        today = datetime.now().date()
+        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
 
     beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].dropna().unique()))
     if beds_filter != "All":
@@ -289,7 +294,7 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
-    filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
+    filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False)
 
     if filtered_data.empty:
         st.info("No results match your filters.")
@@ -309,6 +314,11 @@ def display_historical_data(historical_data):
     st.header("Rent History")
     fig = px.line(
         filtered_data,
+        x="fetch_datetime",
+        y="rent",
+        color="unit_number",
+        line_group="building",
+        title="Rent History",
         x="fetch_datetime",
         y="rent",
         color="unit_number",
