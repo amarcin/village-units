@@ -261,8 +261,9 @@ def display_historical_data(historical_data):
 
     include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
     today = datetime.now().date()
+    available_units = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
     if not include_unavailable:
-        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
+        filtered_data = available_units
 
     if filtered_data.empty:
         st.info("No results match your filters.")
@@ -287,7 +288,7 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
-    filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False)
+    filtered_data = filtered_data.sort_values(by=["unit_number", "building", "property_name", "fetch_datetime"], ascending=[True, True, True, False]).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
 
     if filtered_data.empty:
         st.info("No results match your filters.")
