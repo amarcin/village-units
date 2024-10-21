@@ -226,7 +226,7 @@ def fetch_units():
                         "Unit": unit.get("unit_number"),
                         "Rent": unit.get("rent"),
                         "Property": unit.get("property", {}).get("name"),
-                        "beds": unit.get("floorplan", {}).get("beds"),
+                        "Beds": unit.get("floorplan", {}).get("beds"),
                         "Sqft": unit.get("floorplan", {}).get("sqft"),
                         "Floorplan": unit.get("floorplan", {})
                         .get("media", [{}])[0]
@@ -279,9 +279,9 @@ def display_historical_data(historical_data):
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
-    unit_filter = st.sidebar.selectbox("Select Unit Number", ["All"] + sorted(filtered_data["unit_number"].unique()))
-    if unit_filter != "All":
-        filtered_data = filtered_data[filtered_data["unit_number"] == unit_filter]
+    unit_filter = st.sidebar.text_input("Enter Unit Number")
+    if unit_filter:
+        filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
     rent_filter = st.sidebar.slider("Select Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
@@ -294,16 +294,27 @@ def display_historical_data(historical_data):
     if amenities_filter:
         filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
-    st.header("Filtered Data Overview")
-    st.dataframe(filtered_data)
+    # Filter to get the most recent records per unit
+    filtered_data = filtered_data.sort_values(by="fetch_datetime", ascending=False).drop_duplicates(subset=["unit_number", "building", "property_name"], keep="first")
 
-    st.header("Rent History for Filtered Units")
+    st.header("Units")
+    st.dataframe(
+        filtered_data,
+        hide_index=True,
+        column_config={
+            "Floorplan": st.column_config.LinkColumn(
+                "Floorplan", display_text="View"
+            )
+        },
+    )
+
+    st.header("Rent History")
     fig = px.line(
         filtered_data,
         x="fetch_datetime",
         y="rent",
         color="unit_number",
-        title="Rent History for Filtered Units",
+        title="Rent History",
     )
     st.plotly_chart(fig)
 
