@@ -267,89 +267,45 @@ def load_historical_data(_boto3_session):
         return None
 
 def display_historical_data(historical_data):
-    st.subheader("Imported Historical Data")
-    st.dataframe(historical_data)
-    
+    st.sidebar.header("Filters")
     properties = historical_data["property_name"].unique()
-    property_filter = st.selectbox("Select Property", ["All"] + list(properties))
+    property_filter = st.sidebar.selectbox("Select Property", ["All"] + list(properties))
     
     filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    unit_filter = st.selectbox("Select Unit", ["All"] + sorted(filtered_data["unit_number"].unique()))
+    beds_filter = st.sidebar.selectbox("Select Number of Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
+    if beds_filter != "All":
+        filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
+
+    unit_filter = st.sidebar.selectbox("Select Unit Number", ["All"] + sorted(filtered_data["unit_number"].unique()))
     if unit_filter != "All":
         filtered_data = filtered_data[filtered_data["unit_number"] == unit_filter]
 
-    rent_filter = st.slider("Select Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
+    rent_filter = st.sidebar.slider("Select Rent Price Range", int(filtered_data["rent"].min()), int(filtered_data["rent"].max()), (int(filtered_data["rent"].min()), int(filtered_data["rent"].max())))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-    st.subheader("Rent Summary")
-    property_summary = filtered_data.groupby("unit_number").agg(
-        {"rent": ["last", "mean", "min", "max"]}
-    )
-    property_summary.columns = ["Current", "Avg", "Min", "Max"]
-    st.dataframe(property_summary)
+    sqft_filter = st.sidebar.slider("Select Square Footage Range", int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max()), (int(filtered_data["floorplan_sqft"].min()), int(filtered_data["floorplan_sqft"].max())))
+    filtered_data = filtered_data[(filtered_data["floorplan_sqft"] >= sqft_filter[0]) & (filtered_data["floorplan_sqft"] <= sqft_filter[1])]
 
-    st.subheader("Price Changes")
-    price_changes = filtered_data.groupby("unit_number").agg(
-        {"rent": ["first", "last", lambda x: x.diff().sum()]}
-    )
-    price_changes.columns = ["Initial Rent", "Current Rent", "Total Change"]
-    price_changes["Percent Change"] = (
-        price_changes["Total Change"] / price_changes["Initial Rent"]
-    ) * 100
-    st.dataframe(price_changes)
+    amenities_list = set(amenity for amenities in filtered_data["amenities"].dropna() for amenity in amenities.split(", "))
+    amenities_filter = st.sidebar.multiselect("Select Amenities", sorted(amenities_list))
+    if amenities_filter:
+        filtered_data = filtered_data[filtered_data["amenities"].apply(lambda x: all(amenity in x for amenity in amenities_filter))]
 
-    st.subheader("Rent History")
-    time_periods = {
-        "1 Month": 30,
-        "3 Months": 90,
-        "6 Months": 180,
-        "1 Year": 365,
-        "Max": None,
-    }
-    selected_period = st.selectbox("Select Time Period", list(time_periods.keys()))
+    st.header("Filtered Data Overview")
+    st.dataframe(filtered_data)
 
-    # Ensure end_date is timezone-aware
-    end_date = datetime.now(pytz.UTC)
-    if time_periods[selected_period]:
-        start_date = end_date - timedelta(days=time_periods[selected_period])
-    else:
-        start_date = filtered_data["fetch_datetime"].min().replace(tzinfo=pytz.UTC)
-
-    # Ensure filtered_data['fetch_datetime'] is timezone-aware
-    if filtered_data["fetch_datetime"].dt.tz is None:
-        filtered_data["fetch_datetime"] = filtered_data[
-            "fetch_datetime"
-        ].dt.tz_localize(pytz.UTC)
-
-    filtered_data = filtered_data[
-        (filtered_data["fetch_datetime"] >= start_date)
-        & (filtered_data["fetch_datetime"] <= end_date)
-    ]
-
+    st.header("Rent History for Filtered Units")
     fig = px.line(
         filtered_data,
         x="fetch_datetime",
         y="rent",
         color="unit_number",
-        title=f"Rent History - {property_filter if property_filter != 'All' else 'All Properties'}",
+        title="Rent History for Filtered Units",
     )
     st.plotly_chart(fig)
-
-    if unit_filter == "All":
-        st.subheader("Specific Unit Price History")
-        selected_unit = st.selectbox("Select Unit for Detailed History", filtered_data["unit_number"].unique())
-        unit_data = filtered_data[filtered_data["unit_number"] == selected_unit]
-
-        fig_unit = px.line(
-            unit_data,
-            x="fetch_datetime",
-            y="rent",
-            title=f"Price History - Unit {selected_unit}",
-        )
-        st.plotly_chart(fig_unit)
 
 def main():
     set_auth_session()
