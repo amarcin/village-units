@@ -266,16 +266,13 @@ def load_historical_data(_boto3_session):
         logger.error(f"Error loading historical data: {e}")
         return None
 
-def display_historical_data(historical_data):
-    st.sidebar.header("Filters")
-    properties = historical_data["property_name"].unique()
-    property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
-    
-    filtered_data = historical_data
+    if filtered_data.empty:
+        st.info("No results match your filters.")
+        return
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    beds_filter = st.sidebar.selectbox("Number of Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
+    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].unique()))
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
