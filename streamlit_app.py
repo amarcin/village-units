@@ -21,6 +21,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+streamlit_logger = logging.getLogger("streamlit")
+streamlit_logger.setLevel(logging.DEBUG)
+
 # Environment variables
 API_URL = os.environ.get("API_URL")
 BUCKET = os.environ.get("BUCKET")
@@ -264,19 +267,15 @@ def load_historical_data(_boto3_session):
         return None
 
 def display_historical_data(historical_data):
+    st.subheader("Imported Historical Data")
+    st.dataframe(historical_data)
+    
     properties = historical_data["property_name"].unique()
     property_filter = st.selectbox("Select Property", ["All"] + list(properties))
     
     filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
-
-    if "beds" in filtered_data.columns:
-        beds_filter = st.selectbox("Select Number of beds", ["All"] + sorted(filtered_data["beds"].unique()))
-        if beds_filter != "All":
-            filtered_data = filtered_data[filtered_data["beds"] == beds_filter]
-    else:
-        st.warning("Column 'beds' not found in the dataset.")
 
     unit_filter = st.selectbox("Select Unit", ["All"] + sorted(filtered_data["unit_number"].unique()))
     if unit_filter != "All":
