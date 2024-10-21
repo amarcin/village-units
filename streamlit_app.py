@@ -14,17 +14,14 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 streamlit_logger = logging.getLogger("streamlit")
 streamlit_logger.setLevel(logging.DEBUG)
 
-# Environment variables
 API_URL = os.environ.get("API_URL")
 BUCKET = os.environ.get("BUCKET")
 PREFIX = os.environ.get("PREFIX")
@@ -38,8 +35,6 @@ COGNITO_IDENTITY_POOL_ID = os.getenv("COGNITO_IDENTITY_POOL_ID")
 
 st.set_page_config(page_title="Village Data", page_icon=":bar_chart:", layout="centered")
 
-# Authentication functions
-
 def initialize_session_state():
     if "auth_state" not in st.session_state:
         st.session_state.auth_state = {
@@ -50,7 +45,6 @@ def initialize_session_state():
         }
     logger.info("Session state initialized")
 
-# Call initialize_session_state at the start of the script
 initialize_session_state()
 
 def get_auth_code():
@@ -181,8 +175,6 @@ def logout_button():
         }
         st.rerun()
 
-# Main application functions
-
 def title():
     col1, col2 = st.columns([6, 1])
     col1.title("Village Data")
@@ -251,20 +243,15 @@ def load_historical_data(_boto3_session):
 
 def display_historical_data(historical_data):
     st.sidebar.header("Filters")
-    
+
     properties = historical_data["property_name"].unique()
-    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
     property_filter = st.sidebar.selectbox("Property", ["All"] + list(properties))
     
     filtered_data = historical_data
     if property_filter != "All":
         filtered_data = filtered_data[filtered_data["property_name"] == property_filter]
 
-    today = datetime.now().date()
-    if not include_unavailable:
-        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
-
-    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(available_units["floorplan_beds"].dropna().unique()))
+    beds_filter = st.sidebar.selectbox("Beds", ["All"] + sorted(filtered_data["floorplan_beds"].dropna().unique()))
     if beds_filter != "All":
         filtered_data = filtered_data[filtered_data["floorplan_beds"] == beds_filter]
 
@@ -272,19 +259,24 @@ def display_historical_data(historical_data):
     if unit_filter:
         filtered_data = filtered_data[filtered_data["unit_number"].astype(str) == unit_filter]
 
+    include_unavailable = st.sidebar.checkbox("Include unavailable units", value=False, key="include_unavailable_checkbox")
+    today = datetime.now().date()
+    if not include_unavailable:
+        filtered_data = filtered_data[filtered_data["fetch_datetime"].dt.date == today]
+
     if filtered_data.empty:
         st.info("No results match your filters.")
         return
 
-    rent_min = int(available_units["rent"].min(skipna=True) if pd.notna(available_units["rent"].min()) else 0)
-    rent_max = int(available_units["rent"].max(skipna=True) if pd.notna(available_units["rent"].max()) else 10000)
+    rent_min = int(filtered_data["rent"].min(skipna=True) if pd.notna(filtered_data["rent"].min()) else 0)
+    rent_max = int(filtered_data["rent"].max(skipna=True) if pd.notna(filtered_data["rent"].max()) else 10000)
     if rent_min == rent_max:
         rent_max += 1
     rent_filter = st.sidebar.slider("Rent Price Range", rent_min, rent_max, (rent_min, rent_max))
     filtered_data = filtered_data[(filtered_data["rent"] >= rent_filter[0]) & (filtered_data["rent"] <= rent_filter[1])]
 
-    sqft_min = int(available_units["floorplan_sqft"].min(skipna=True) if pd.notna(available_units["floorplan_sqft"].min()) else 0)
-    sqft_max = int(available_units["floorplan_sqft"].max(skipna=True) if pd.notna(available_units["floorplan_sqft"].max()) else 5000)
+    sqft_min = int(filtered_data["floorplan_sqft"].min(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].min()) else 0)
+    sqft_max = int(filtered_data["floorplan_sqft"].max(skipna=True) if pd.notna(filtered_data["floorplan_sqft"].max()) else 5000)
     if sqft_min == sqft_max:
         sqft_max += 1
     sqft_filter = st.sidebar.slider("Square Footage Range", sqft_min, sqft_max, (sqft_min, sqft_max))
